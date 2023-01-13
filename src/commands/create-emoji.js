@@ -34,7 +34,8 @@ module.exports = {
             .setMaxLength(32),
         ),
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageEmojisAndStickers),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageEmojisAndStickers)
+    .setDMPermission(false),
   async execute(interaction) {
     const name = interaction.options.getString("name");
 
