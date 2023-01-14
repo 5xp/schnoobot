@@ -63,15 +63,13 @@ class EconomyManager {
     return { userBalance: user.balance, recipientBalance: recipient.balance };
   }
 
-  validateAmount(id, amount) {
+  static validateAmount(amount, balance) {
     if (amount <= 0) {
-      return false;
+      return new Error("Amount must be greater than $0.00!");
     }
 
-    const balance = this.getBalance(id);
-
     if (amount > balance) {
-      return false;
+      return new Error(`Insufficient balance! Your balance is ${EconomyManager.getNumber(balance).formatted}.`);
     }
 
     return true;

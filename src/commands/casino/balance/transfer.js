@@ -1,12 +1,14 @@
 const { EmbedBuilder, bold } = require("discord.js");
-const { getNumber } = require("../../../EconomyManager");
+const { getNumber, validateAmount } = require("../../../EconomyManager");
 
 module.exports = async interaction => {
   const amountString = interaction.options.getString("amount");
   const { formatted: formattedAmount, value: amount } = getNumber(amountString, interaction.user.id);
+  const balance = interaction.client.economy.getBalance(interaction.user.id);
 
-  if (!interaction.client.economy.validateAmount(interaction.user.id, amount)) {
-    return interaction.reply({ content: "You don't have enough balance to transfer", ephemeral: true });
+  const error = validateAmount(amount, balance);
+  if (error instanceof Error) {
+    return interaction.reply({ content: bold(error.message), ephemeral: true });
   }
 
   const recipient = interaction.options.getUser("recipient");
