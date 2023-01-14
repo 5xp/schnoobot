@@ -20,14 +20,7 @@ function clean(text) {
 module.exports = {
   data: new SlashCommandBuilder().setName("run-code").setDescription("Run code"),
   async execute(interaction) {
-    let owner = interaction.client.application.owner;
-
-    if (!owner) {
-      await interaction.client.application.fetch();
-      owner = interaction.client.application.owner;
-    }
-
-    if (interaction.user.id !== owner.id) {
+    if (interaction.user.id !== interaction.client.application.owner.id) {
       await interaction.reply({
         content: "Only the bot owner can use this command.",
         ephemeral: true,
