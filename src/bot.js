@@ -3,9 +3,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const loadCommands = require("./load-commands.js");
+const EconomyManager = require("./EconomyManager.js");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 loadCommands(client);
+
+client.economy = new EconomyManager();
 
 // Add listeners
 const eventsPath = path.join(__dirname, "events");
