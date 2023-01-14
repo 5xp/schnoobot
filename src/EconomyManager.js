@@ -1,6 +1,9 @@
 const { Collection } = require("discord.js");
 const { Users } = require("./db-objects.js");
 
+const numeral = require("numeral");
+numeral.defaultFormat("$0,0.00");
+
 class EconomyManager {
   users = new Collection();
 
@@ -52,8 +55,40 @@ class EconomyManager {
   }
 
   async transferBalance(id, amount, recipientId) {
-    this.addBalance(id, -amount);
-    this.addBalance(recipientId, amount);
+    const userPromise = this.addBalance(id, -amount);
+    const recipientPromise = this.addBalance(recipientId, amount);
+
+    const [user, recipient] = await Promise.all([userPromise, recipientPromise]);
+
+    return { userBalance: user.balance, recipientBalance: recipient.balance };
+  }
+
+  validateAmount(id, amount) {
+    if (amount <= 0) {
+      return false;
+    }
+
+    const balance = this.getBalance(id);
+
+    if (amount > balance) {
+      return false;
+    }
+
+    return true;
+  }
+
+  static getNumber(inputAmount, id = null) {
+    if (String(inputAmount).toLowerCase() === "all") {
+      const balance = this.getBalance(id);
+      return { formattedAmount: this.formatNumber(balance), amount: balance };
+    }
+
+    const number = numeral(inputAmount);
+
+    const formatted = number.format();
+    const value = numeral(formatted).value();
+
+    return { formatted, value };
   }
 }
 
