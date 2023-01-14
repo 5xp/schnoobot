@@ -25,6 +25,19 @@ module.exports = {
               option.setName("recipient").setDescription("The user to transfer to").setRequired(true),
             ),
         ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName("flip")
+        .setDescription("Flip a coin")
+        .addStringOption(option =>
+          option
+            .setName("choice")
+            .setDescription("Heads or tails")
+            .setRequired(true)
+            .addChoices({ name: "Heads", value: "heads" }, { name: "Tails", value: "tails" }),
+        )
+        .addStringOption(option => option.setName("wager").setDescription("The amount to wager").setRequired(true)),
     ),
   async execute(interaction) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
