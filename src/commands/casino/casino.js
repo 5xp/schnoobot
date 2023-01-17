@@ -38,6 +38,17 @@ module.exports = {
             .addChoices({ name: "Heads", value: "heads" }, { name: "Tails", value: "tails" }),
         )
         .addStringOption(option => option.setName("wager").setDescription("The amount to wager").setRequired(true)),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName("limbo")
+        .setDescription("Pick a target multiplier. If it lands higher than the target, you win.")
+        .addNumberOption(option =>
+          option.setName("target").setDescription("The target multiplier").setRequired(true).setMinValue(1),
+        )
+        .addStringOption(option =>
+          option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
+        ),
     ),
   async execute(interaction) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
