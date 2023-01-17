@@ -23,6 +23,10 @@ function readCommands(dir, client) {
         continue;
       }
 
+      if (deployGlobal && command.devOnly) {
+        continue;
+      }
+
       commands.push(command.data.toJSON());
     }
   }

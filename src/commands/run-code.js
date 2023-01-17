@@ -19,6 +19,7 @@ function clean(text) {
 
 module.exports = {
   data: new SlashCommandBuilder().setName("run-code").setDescription("Run code"),
+  devOnly: true,
   async execute(interaction) {
     if (interaction.user.id !== interaction.client.application.owner.id) {
       await interaction.reply({
