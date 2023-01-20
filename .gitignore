@@ -131,3 +131,6 @@ dist
 
 # Environment variables
 .env
+
+# Database
+*.sqlite
