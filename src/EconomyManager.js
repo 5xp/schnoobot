@@ -3,9 +3,18 @@ const { Users } = require("./db-objects.js");
 
 const numeral = require("numeral");
 numeral.defaultFormat("$0,0.00");
+const hoursToMs = 60 * 60 * 1000;
 
 class EconomyManager {
   users = new Collection();
+
+  minHoursUntilDaily = 18;
+  maxHoursUntilLate = 30;
+  baseReward = 1000;
+  flatReward = 10;
+  exponent = 1.1;
+  streakReward = (streak, totalClaims) =>
+    (this.baseReward + this.flatReward * totalClaims) * Math.pow(streak, this.exponent);
 
   constructor() {
     this.init();
@@ -52,6 +61,124 @@ class EconomyManager {
     this.users.set(id, newUser);
 
     return newUser;
+  }
+
+  async incrementDailyStreak(id) {
+    const user = this.users.get(id);
+
+    if (user) {
+      user.daily_streak += 1;
+      user.total_daily += 1;
+      user.last_daily = Date.now();
+
+      if (user.daily_streak > user.highest_streak) {
+        user.highest_streak = user.daily_streak;
+      }
+
+      return user.save();
+    }
+
+    const newUser = await Users.create({
+      user_id: id,
+      last_daily: Date.now(),
+      daily_streak: 1,
+      total_daily: 1,
+      highest_streak: 1,
+    });
+
+    this.users.set(id, newUser);
+
+    return newUser;
+  }
+
+  async resetDailyStreak(id) {
+    const user = this.users.get(id);
+
+    if (user) {
+      user.daily_streak = 1;
+      user.total_daily += 1;
+      user.last_daily = Date.now();
+
+      return user.save();
+    }
+
+    const newUser = await Users.create({ user_id: id, last_daily: Date.now(), daily_streak: 1, total_daily: 1 });
+    this.users.set(id, newUser);
+
+    return newUser;
+  }
+
+  getDailyStatus(id) {
+    const user = this.users.get(id);
+    const lastDaily = user?.last_daily ?? 0;
+    const streak = user?.daily_streak ?? 0;
+    const totalDaily = user?.total_daily ?? 0;
+    const balance = user?.balance ?? 0;
+
+    if (lastDaily === 0) {
+      return { available: true, late: false, balance, streak, totalDaily };
+    }
+
+    const availableAt = lastDaily + this.minHoursUntilDaily * hoursToMs;
+    const lateAt = lastDaily + this.maxHoursUntilLate * hoursToMs;
+
+    const isAvailable = Date.now() > availableAt;
+    const isLate = Date.now() > lateAt;
+
+    const lateBy = Date.now() - lateAt;
+
+    if (isLate) {
+      return { available: true, late: true, lateBy, balance, streak, totalDaily };
+    }
+
+    if (isAvailable) {
+      return { available: true, late: false, availableAt, balance, streak, totalDaily };
+    }
+
+    return { available: false, availableAt, balance, streak, totalDaily };
+  }
+
+  async rewardStreak(id) {
+    const dailyStatus = this.getDailyStatus(id);
+    const { streak, totalDaily, balance } = dailyStatus;
+
+    if (!dailyStatus.available) {
+      return {
+        success: false,
+        ...dailyStatus,
+      };
+    }
+
+    if (dailyStatus.late) {
+      await this.resetDailyStreak(id);
+
+      const reward = this.streakReward(1, totalDaily);
+      this.addBalance(id, reward);
+
+      return {
+        success: true,
+        late: true,
+        lateBy: dailyStatus.lateBy,
+        streak: streak + 1,
+        reward,
+        balance: balance + reward,
+        totalDaily: totalDaily + 1,
+      };
+    }
+
+    await this.incrementDailyStreak(id);
+
+    const reward = this.streakReward(streak + 1, totalDaily + 1);
+    this.addBalance(id, reward);
+
+    return {
+      success: true,
+      reward,
+      streak: streak + 1,
+      lateBy: dailyStatus.lateBy,
+      balance: balance + reward,
+      totalDaily: totalDaily + 1,
+    };
   }
 
   async transferBalance(id, amount, recipientId) {

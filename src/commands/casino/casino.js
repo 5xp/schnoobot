@@ -26,6 +26,12 @@ module.exports = {
             ),
         ),
     )
+    .addSubcommandGroup(subcommandGroup =>
+      subcommandGroup
+        .setName("daily")
+        .setDescription("Claim your daily reward")
+        .addSubcommand(subcommand => subcommand.setName("claim").setDescription("Claim your daily reward")),
+    )
     .addSubcommand(subcommand =>
       subcommand
         .setName("flip")
