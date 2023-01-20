@@ -2,7 +2,9 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = req
 const { getNumber, validateAmount } = require("../../EconomyManager");
 const numeral = require("numeral");
 
-function constructComponents(selected = null) {
+function constructComponents(options) {
+  const { selected = null, multiplier = 0, win } = options;
+
   const playAgainButton = new ButtonBuilder()
     .setCustomId("playAgain")
     .setLabel("Play again")
@@ -10,7 +12,7 @@ function constructComponents(selected = null) {
 
   const doubleButton = new ButtonBuilder()
     .setCustomId("double")
-    .setLabel("Play again (2x wager)")
+    .setLabel(`Play again (${multiplier.toFixed(2)}x wager)`)
     .setStyle(ButtonStyle.Danger);
 
   switch (selected) {
@@ -28,7 +30,9 @@ function constructComponents(selected = null) {
       break;
   }
 
-  const row = new ActionRowBuilder().addComponents(playAgainButton, doubleButton);
+  const row = new ActionRowBuilder().addComponents(playAgainButton);
+
+  if (!win) row.addComponents(doubleButton);
 
   return [row];
 }
@@ -36,8 +40,9 @@ function constructComponents(selected = null) {
 function constructEmbed(targetMultiplier, resultMultiplier, wager, balance) {
   const win = targetMultiplier <= resultMultiplier;
 
-  const targetMultiplierFormatted = numeral(targetMultiplier).format("0.00") + "x";
-  const resultMultiplierFormatted = numeral(resultMultiplier).format("0.00") + "x";
+  const targetMultiplierFormatted = targetMultiplier.toFixed(2) + "x";
+  const resultMultiplierFormatted = resultMultiplier.toFixed(2) + "x";
+
   const winChance = 1 / targetMultiplier;
   const winChanceFormatted = numeral(winChance).format("0.00%");
 
@@ -81,6 +86,7 @@ module.exports = async (interaction, wager = null, targetMultiplier = null) => {
   }
 
   const resultMultiplier = getLimboResult();
+  const playAgainMultiplier = targetMultiplier / (targetMultiplier - 1);
 
   const win = targetMultiplier <= resultMultiplier;
   const netGain = win ? wagerValue * (targetMultiplier - 1) : -wagerValue;
@@ -88,7 +94,11 @@ module.exports = async (interaction, wager = null, targetMultiplier = null) => {
   interaction.client.economy.addBalance(interaction.user.id, netGain);
 
   const embed = constructEmbed(targetMultiplier, resultMultiplier, wagerValue, balance);
-  const reply = await interaction.reply({ embeds: [embed], components: constructComponents(), fetchReply: true });
+  const reply = await interaction.reply({
+    embeds: [embed],
+    components: constructComponents({ multiplier: playAgainMultiplier, win }),
+    fetchReply: true,
+  });
 
   const filter = i => i.user.id === interaction.user.id;
   const i = await reply.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
@@ -98,10 +108,10 @@ module.exports = async (interaction, wager = null, targetMultiplier = null) => {
   if (i) {
     selected = i.customId;
 
-    if (i.customId === "double") wagerValue *= 2;
+    if (i.customId === "double") wagerValue *= playAgainMultiplier;
 
     module.exports(i, wagerValue, targetMultiplier);
   }
 
-  reply.edit({ components: constructComponents(selected) });
+  reply.edit({ components: constructComponents({ multiplier: playAgainMultiplier, selected, win }) });
 };

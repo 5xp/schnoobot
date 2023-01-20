@@ -1,7 +1,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = require("discord.js");
 const { getNumber, validateAmount } = require("../../EconomyManager");
 
-function constructComponents(selected = null) {
+function constructComponents(options) {
+  const { selected = null, win } = options;
+
   const playAgainButton = new ButtonBuilder()
     .setCustomId("playAgain")
     .setLabel("Play again")
@@ -27,7 +29,9 @@ function constructComponents(selected = null) {
       break;
   }
 
-  const row = new ActionRowBuilder().addComponents(playAgainButton, doubleButton);
+  const row = new ActionRowBuilder().addComponents(playAgainButton);
+
+  if (!win) row.addComponents(doubleButton);
 
   return [row];
 }
@@ -77,7 +81,11 @@ module.exports = async (interaction, wager = null, choice = null) => {
 
   const embed = constructEmbed(choice, result, wagerValue, balance);
 
-  const reply = await interaction.reply({ embeds: [embed], components: constructComponents(), fetchReply: true });
+  const reply = await interaction.reply({
+    embeds: [embed],
+    components: constructComponents({ win }),
+    fetchReply: true,
+  });
 
   const filter = i => i.user.id === interaction.user.id;
 
@@ -93,5 +101,5 @@ module.exports = async (interaction, wager = null, choice = null) => {
     module.exports(i, wagerValue, choice);
   }
 
-  reply.edit({ components: constructComponents(selected) });
+  reply.edit({ components: constructComponents({ selected, win }) });
 };
