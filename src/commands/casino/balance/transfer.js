@@ -3,8 +3,8 @@ const { getNumber, validateAmount } = require("../../../EconomyManager");
 
 module.exports = async interaction => {
   const amountString = interaction.options.getString("amount");
-  const { formatted: formattedAmount, value: amount } = getNumber(amountString, interaction.user.id);
   const balance = interaction.client.economy.getBalance(interaction.user.id);
+  const { formatted: formattedAmount, value: amount } = getNumber(amountString, balance);
 
   const error = validateAmount(amount, balance);
   if (error instanceof Error) {

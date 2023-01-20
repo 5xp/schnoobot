@@ -75,18 +75,15 @@ class EconomyManager {
     return true;
   }
 
-  static getNumber(inputAmount, id = null) {
+  static getNumber(inputAmount, balance = null) {
     if (String(inputAmount).toLowerCase() === "all") {
-      const balance = this.getBalance(id);
-      return { formattedAmount: this.formatNumber(balance), amount: balance };
+      inputAmount = balance;
     }
 
     const number = numeral(inputAmount);
-
     const formatted = number.format();
-    const value = numeral(formatted).value();
 
-    return { formatted, value };
+    return { formatted, value: number.value() };
   }
 }
 

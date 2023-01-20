@@ -64,7 +64,7 @@ module.exports = async (interaction, wager = null, choice = null) => {
 
   let balance = interaction.client.economy.getBalance(interaction.user.id);
 
-  let { value: wagerValue } = getNumber(wager, interaction.user.id);
+  let { value: wagerValue } = getNumber(wager, balance);
 
   const error = validateAmount(wagerValue, balance);
   if (error instanceof Error) {
