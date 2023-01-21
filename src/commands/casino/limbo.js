@@ -3,7 +3,7 @@ const { getNumber, validateAmount } = require("../../EconomyManager");
 const numeral = require("numeral");
 
 function constructComponents(options) {
-  const { selected = null, multiplier = 0, win } = options;
+  const { selected = null, multiplier = 0, win, wager, originalWager } = options;
 
   const playAgainButton = new ButtonBuilder()
     .setCustomId("playAgain")
@@ -15,24 +15,39 @@ function constructComponents(options) {
     .setLabel(`Play again (${multiplier.toFixed(2)}x wager)`)
     .setStyle(ButtonStyle.Danger);
 
+  const originalWagerButton = new ButtonBuilder()
+    .setCustomId("originalWager")
+    .setLabel(`Play again (${getNumber(originalWager).formatted})`)
+    .setStyle(ButtonStyle.Secondary);
+
   switch (selected) {
     case "playAgain":
       playAgainButton.setStyle(ButtonStyle.Success).setDisabled(true);
       doubleButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+      originalWagerButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
       break;
     case "double":
       doubleButton.setStyle(ButtonStyle.Success).setDisabled(true);
+      playAgainButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+      originalWagerButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+      break;
+    case "originalWager":
+      originalWagerButton.setStyle(ButtonStyle.Success).setDisabled(true);
+      doubleButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
       playAgainButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
       break;
     case "none":
       doubleButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
       playAgainButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+      originalWagerButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
       break;
   }
 
   const row = new ActionRowBuilder().addComponents(playAgainButton);
 
   if (!win) row.addComponents(doubleButton);
+
+  if (wager !== originalWager) row.addComponents(originalWagerButton);
 
   return [row];
 }
@@ -72,13 +87,14 @@ function getLimboResult() {
   return Math.floor(result * 100) / 100;
 }
 
-module.exports = async (interaction, wager = null, targetMultiplier = null) => {
+module.exports = async (interaction, wager = null, targetMultiplier = null, originalWager = null) => {
   wager ??= interaction.options.getString("wager");
   targetMultiplier ??= interaction.options.getNumber("target");
 
   let balance = interaction.client.economy.getBalance(interaction.user.id);
 
-  let { value: wagerValue } = getNumber(wager, balance);
+  const { value: wagerValue } = getNumber(wager, balance);
+  originalWager ??= wagerValue;
 
   const error = validateAmount(wagerValue, balance);
   if (error instanceof Error) {
@@ -96,7 +112,7 @@ module.exports = async (interaction, wager = null, targetMultiplier = null) => {
   const embed = constructEmbed(targetMultiplier, resultMultiplier, wagerValue, balance);
   const reply = await interaction.reply({
     embeds: [embed],
-    components: constructComponents({ multiplier: playAgainMultiplier, win }),
+    components: constructComponents({ multiplier: playAgainMultiplier, win, wager: wagerValue, originalWager }),
     fetchReply: true,
   });
 
@@ -108,10 +124,21 @@ module.exports = async (interaction, wager = null, targetMultiplier = null) => {
   if (i) {
     selected = i.customId;
 
-    if (i.customId === "double") wagerValue *= playAgainMultiplier;
+    let newWager = wagerValue;
 
-    module.exports(i, wagerValue, targetMultiplier);
+    if (i.customId === "double") newWager *= playAgainMultiplier;
+    if (i.customId === "originalWager") newWager = originalWager;
+
+    module.exports(i, newWager, targetMultiplier, originalWager);
   }
 
-  reply.edit({ components: constructComponents({ multiplier: playAgainMultiplier, selected, win }) });
+  reply.edit({
+    components: constructComponents({
+      multiplier: playAgainMultiplier,
+      selected,
+      win,
+      wager: wagerValue,
+      originalWager,
+    }),
+  });
 };
