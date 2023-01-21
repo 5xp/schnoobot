@@ -1,5 +1,6 @@
 const { Collection } = require("discord.js");
-const { Users } = require("./db-objects.js");
+const { Users, CasinoLogs } = require("./db-objects.js");
+const { Op } = require("sequelize");
 
 const numeral = require("numeral");
 numeral.defaultFormat("$0,0.00");
@@ -188,6 +189,28 @@ class EconomyManager {
     const [user, recipient] = await Promise.all([userPromise, recipientPromise]);
 
     return { userBalance: user.balance, recipientBalance: recipient.balance };
+  }
+
+  addLog(id, game, net_gain) {
+    return CasinoLogs.create({ user_id: id, game, net_gain });
+  }
+
+  fetchLogs(id, timeRange, game = null) {
+    const filter = {
+      where: {
+        user_id: id,
+        timestamp: {
+          [Op.gte]: new Date(Date.now() - timeRange),
+        },
+      },
+      order: [["timestamp", "DESC"]],
+    };
+
+    if (game) {
+      filter.where.game = game;
+    }
+
+    return CasinoLogs.findAll(filter);
   }
 
   static validateAmount(amount, balance) {

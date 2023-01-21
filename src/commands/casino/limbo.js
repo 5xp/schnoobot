@@ -107,7 +107,9 @@ module.exports = async (interaction, wager = null, targetMultiplier = null, orig
   const win = targetMultiplier <= resultMultiplier;
   const netGain = win ? wagerValue * (targetMultiplier - 1) : -wagerValue;
   balance += netGain;
+
   interaction.client.economy.addBalance(interaction.user.id, netGain);
+  interaction.client.economy.addLog(interaction.user.id, "limbo", netGain);
 
   const embed = constructEmbed(targetMultiplier, resultMultiplier, wagerValue, balance);
   const reply = await interaction.reply({

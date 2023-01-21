@@ -92,6 +92,7 @@ module.exports = async (interaction, wager = null, choice = null, originalWager 
   balance += netGain;
 
   interaction.client.economy.addBalance(interaction.user.id, netGain);
+  interaction.client.economy.addLog(interaction.user.id, "flip", netGain);
 
   const embed = constructEmbed(choice, result, wagerValue, balance);
 

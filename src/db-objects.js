@@ -8,5 +8,9 @@ const sequelize = new Sequelize("database", "username", "password", {
 });
 
 const Users = require("./models/Users.js")(sequelize, Sequelize.DataTypes);
+const CasinoLogs = require("./models/CasinoLogs.js")(sequelize, Sequelize.DataTypes);
 
-module.exports = { Users };
+Users.hasMany(CasinoLogs, { foreignKey: "user_id", as: "casino_logs" });
+CasinoLogs.belongsTo(Users, { foreignKey: "user_id", targetKey: "user_id", as: "user" });
+
+module.exports = { Users, CasinoLogs };
