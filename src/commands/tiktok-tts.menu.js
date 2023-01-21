@@ -24,11 +24,11 @@ async function selectVoice(interaction) {
 
   const row = new ActionRowBuilder().addComponents(voiceSelect);
 
-  await interaction.reply({ content: bold("Select a voice to use."), components: [row] });
+  const reply = await interaction.reply({ content: bold("Select a voice to use."), components: [row] });
 
   const filter = i => i.customId === "voiceSelect" && i.user.id === interaction.user.id;
 
-  const i = await interaction.channel.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
+  const i = await reply.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
 
   if (!i) {
     interaction.deleteReply();

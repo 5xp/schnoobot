@@ -44,11 +44,11 @@ async function selectUrl(interaction, urls, ephemeral) {
 
   const row = new ActionRowBuilder().addComponents(urlSelect);
 
-  await interaction.reply({ content: bold("Select a URL to download."), components: [row], ephemeral });
+  const reply = await interaction.reply({ content: bold("Select a URL to download."), components: [row], ephemeral });
 
   const filter = i => i.customId === "urlSelect" && i.user.id === interaction.user.id;
 
-  const i = await interaction.channel.awaitMessageComponent({ filter, time: 10_000 }).catch(() => null);
+  const i = await reply.awaitMessageComponent({ filter, time: 10_000 }).catch(() => null);
 
   if (!i) {
     interaction.deleteReply();
