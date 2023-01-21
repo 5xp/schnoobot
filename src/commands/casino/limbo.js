@@ -115,7 +115,6 @@ module.exports = async (interaction, wager = null, targetMultiplier = null, orig
   const reply = await interaction.reply({
     embeds: [embed],
     components: constructComponents({ multiplier: playAgainMultiplier, win, wager: wagerValue, originalWager }),
-    fetchReply: true,
   });
 
   const filter = i => i.user.id === interaction.user.id;
@@ -134,7 +133,7 @@ module.exports = async (interaction, wager = null, targetMultiplier = null, orig
     module.exports(i, newWager, targetMultiplier, originalWager);
   }
 
-  reply.edit({
+  interaction.editReply({
     components: constructComponents({
       multiplier: playAgainMultiplier,
       selected,

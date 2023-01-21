@@ -99,7 +99,6 @@ module.exports = async (interaction, wager = null, choice = null, originalWager 
   const reply = await interaction.reply({
     embeds: [embed],
     components: constructComponents({ wager: wagerValue, originalWager }),
-    fetchReply: true,
   });
 
   const filter = i => i.user.id === interaction.user.id;
@@ -119,7 +118,7 @@ module.exports = async (interaction, wager = null, choice = null, originalWager 
     module.exports(i, newWager, choice, originalWager);
   }
 
-  reply.edit({
+  interaction.editReply({
     components: constructComponents({
       selected,
       wager: wagerValue,
