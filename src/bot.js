@@ -5,7 +5,7 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const loadCommands = require("./load-commands.js");
 const EconomyManager = require("./EconomyManager.js");
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildEmojisAndStickers] });
 loadCommands(client);
 
 client.economy = new EconomyManager();

@@ -37,6 +37,13 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageEmojisAndStickers)
     .setDMPermission(false),
   async execute(interaction) {
+    if (!interaction.appPermissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+      return interaction.reply({
+        content: `I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`,
+        ephemeral: true,
+      });
+    }
+
     const name = interaction.options.getString("name");
 
     if (name.includes(" ")) {
@@ -68,6 +75,8 @@ module.exports = {
       }
     }
 
+    await interaction.deferReply();
+
     try {
       const emoji = await interaction.guild.emojis.create({ attachment: url, name });
 
@@ -77,10 +86,10 @@ module.exports = {
         .setFooter({ text: emoji.name })
         .setColor("Blurple");
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error(error);
-      await interaction.reply({
+      await interaction.editReply({
         content: `There was an error trying to create the emoji: ${inlineCode(error.rawError.message)}`,
         ephemeral: true,
       });
