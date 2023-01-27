@@ -55,10 +55,21 @@ module.exports = {
 
       extension = (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
     } catch (error) {
+      console.error(error);
+
       await interaction.editReply({
-        content: bold(`An error occurred while downloading the file: ${codeBlock(error.stderr)}`),
+        content: bold("An error occurred while downloading the media!"),
         ephemeral,
       });
+
+      interaction.followUp({
+        content: bold(`An error occurred while downloading media from <${url}>:`) + codeBlock(error.stderr),
+        ephemeral: true,
+      });
+
+      setTimeout(() => {
+        interaction.deleteReply();
+      }, 5_000);
 
       return;
     }
@@ -74,6 +85,10 @@ module.exports = {
         content: bold("An error occurred while uploading the file! The file may be too large."),
         ephemeral,
       });
+
+      setTimeout(() => {
+        interaction.deleteReply();
+      }, 5_000);
     } finally {
       unlink(`${filePath}.${extension}`, () => null);
     }
