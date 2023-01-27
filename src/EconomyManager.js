@@ -129,7 +129,7 @@ class EconomyManager {
     const lateBy = Date.now() - lateAt;
 
     if (isLate) {
-      return { available: true, late: true, lateBy, balance, streak, totalDaily };
+      return { available: true, late: true, lateBy, balance, streak: 0, totalDaily };
     }
 
     if (isAvailable) {
