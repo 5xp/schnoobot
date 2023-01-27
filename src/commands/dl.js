@@ -49,7 +49,7 @@ module.exports = {
     try {
       await youtubedl(url, {
         f: format,
-        formatSort: `filesize:${uploadLimit}M`,
+        formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
         o: `${filePath}.%(ext)s`,
       });
 
@@ -75,9 +75,7 @@ module.exports = {
         ephemeral,
       });
     } finally {
-      unlink(`${filePath}.${extension}`, () => {
-        // Ignore errors
-      });
+      unlink(`${filePath}.${extension}`, () => null);
     }
   },
 };
