@@ -46,7 +46,7 @@ module.exports = {
 
     const filter = i => i.customId === "run-code";
 
-    const submission = await interaction.awaitModalSubmit({ filter, time: 60_000 });
+    const submission = await interaction.awaitModalSubmit({ filter, time: 60_000 }).catch(() => null);
 
     const code = submission.fields.getTextInputValue("code");
     const codeFormatted = codeBlock("js", code);
