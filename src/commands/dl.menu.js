@@ -7,6 +7,8 @@ const {
   codeBlock,
   bold,
   AttachmentBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require("discord.js");
 const youtubedl = require("youtube-dl-exec");
 const readdir = require("util").promisify(require("node:fs").readdir);
@@ -89,16 +91,26 @@ module.exports = {
     const filePath = `./temp/${fileName}`;
     let extension;
 
-    const format = "bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b";
-
     const uploadLimit = getUploadLimit(interaction.guild);
 
+    const format = "bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b";
+    const options = {
+      f: format,
+      formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
+      o: `${filePath}.%(ext)s`,
+    };
+
+    let output, jsonDump;
+
     try {
-      await youtubedl(url, {
-        f: format,
-        formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
-        o: `${filePath}.%(ext)s`,
+      output = youtubedl(url, options);
+
+      jsonDump = youtubedl(url, {
+        ...options,
+        dumpSingleJson: true,
       });
+
+      [output, jsonDump] = await Promise.all([output, jsonDump]);
 
       extension = (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
     } catch (error) {
@@ -126,7 +138,22 @@ module.exports = {
         name: `output.${extension}`,
       });
 
-      await interaction.editReply({ content: "", files: [attachment], components: [] });
+      let linkLabel = jsonDump.webpage_url_domain;
+
+      if (jsonDump.channel) {
+        linkLabel += ` @${jsonDump.channel}`;
+      } else if (jsonDump.uploader) {
+        linkLabel += ` @${jsonDump.uploader}`;
+      }
+
+      const linkButton = new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setLabel(linkLabel)
+        .setURL(jsonDump.webpage_url);
+
+      const linkRow = new ActionRowBuilder().addComponents(linkButton);
+
+      await interaction.editReply({ content: "", files: [attachment], components: [linkRow] });
     } catch (error) {
       await interaction.editReply({
         content: bold("An error occurred while uploading the file! The file may be too large."),
