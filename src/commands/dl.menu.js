@@ -11,7 +11,6 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const youtubedl = require("youtube-dl-exec");
-const readdir = require("util").promisify(require("node:fs").readdir);
 const { unlink } = require("node:fs");
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -116,7 +115,7 @@ module.exports = {
 
       [output, jsonDump] = await Promise.all([output, jsonDump]);
 
-      extension = (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
+      extension = jsonDump.ext;
     } catch (error) {
       console.error(error);
 
