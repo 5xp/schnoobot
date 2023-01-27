@@ -60,6 +60,10 @@ module.exports = {
       o: `${filePath}.%(ext)s`,
     };
 
+    if (process.env.COOKIES_TXT_PATH) {
+      options.cookies = process.env.COOKIES_TXT_PATH;
+    }
+
     let output, jsonDump;
 
     try {
