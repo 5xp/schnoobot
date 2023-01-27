@@ -37,12 +37,14 @@ module.exports = {
           option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
         ),
     ),
-  async execute(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-    const url = interaction.options.getString("url");
-    const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;
+  async execute(interaction, url = null, ephemeral = null, subcommand = null) {
+    subcommand ??= interaction.options.getSubcommand();
+    url ??= interaction.options.getString("url");
+    ephemeral ??= interaction.options.getBoolean("ephemeral");
 
-    interaction.deferReply({ ephemeral });
+    if (!interaction.deferred && !interaction.replied) {
+      interaction.deferReply({ ephemeral });
+    }
 
     const isVideo = subcommand === "video";
 
