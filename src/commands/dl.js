@@ -10,6 +10,7 @@ const {
   ButtonStyle,
 } = require("discord.js");
 const youtubedl = require("youtube-dl-exec");
+const readdir = require("util").promisify(require("node:fs").readdir);
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -77,7 +78,7 @@ module.exports = {
 
       [output, jsonDump] = await Promise.all([output, jsonDump]);
 
-      extension = jsonDump.ext;
+      extension = jsonDump.ext ?? (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
     } catch (error) {
       console.error(error);
 
