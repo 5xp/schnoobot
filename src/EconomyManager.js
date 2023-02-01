@@ -10,7 +10,7 @@ class EconomyManager {
   users = new Collection();
 
   minHoursUntilDaily = 18;
-  maxHoursUntilLate = 30;
+  maxHoursUntilLate = 36;
   baseReward = 1000;
   flatReward = 10;
   exponent = 1.1;
