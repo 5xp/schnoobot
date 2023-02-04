@@ -12,6 +12,8 @@ const {
 const youtubedl = require("youtube-dl-exec");
 const readdir = require("util").promisify(require("node:fs").readdir);
 
+const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Danger);
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("dl")
@@ -101,6 +103,8 @@ module.exports = {
       return;
     }
 
+    let reply;
+
     try {
       const attachment = new AttachmentBuilder(`${filePath}.${extension}`, {
         name: `output.${extension}`,
@@ -119,7 +123,11 @@ module.exports = {
         .setLabel(linkLabel)
         .setURL(jsonDump.webpage_url);
 
-      const linkRow = new ActionRowBuilder().addComponents(linkButton);
+      const row = new ActionRowBuilder().addComponents(linkButton);
+
+      if (!ephemeral) {
+        row.addComponents(deleteButton);
+      }
 
       if (isContextMenuCommand && !ephemeral) {
         reply = await targetMessage.reply({
@@ -143,9 +151,26 @@ module.exports = {
       setTimeout(() => {
         interaction.deleteReply();
       }, 5_000);
+
+      return;
     } finally {
       unlink(`${filePath}.${extension}`, () => null);
     }
+
+    const filter = i => i.customId === "delete" && i.user.id === interaction.user.id;
+
+    const i = await reply.awaitMessageComponent({ filter, time: 180_000 }).catch(() => null);
+
+    if (!i) {
+      return;
+    }
+
+    if (isContextMenuCommand) {
+      await reply.delete();
+      return;
+    }
+
+    interaction.deleteReply();
   },
 };
 
