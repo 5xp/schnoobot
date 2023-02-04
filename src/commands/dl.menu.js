@@ -9,7 +9,7 @@ const { execute } = require("./dl");
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 
-async function selectUrl(interaction, urls, ephemeral) {
+async function selectUrl(interaction, urls) {
   const urlSelect = new StringSelectMenuBuilder()
     .setCustomId("urlSelect")
     .setPlaceholder("Select a URL")
@@ -24,7 +24,11 @@ async function selectUrl(interaction, urls, ephemeral) {
 
   const row = new ActionRowBuilder().addComponents(urlSelect);
 
-  const reply = await interaction.reply({ content: bold("Select a URL to download."), components: [row], ephemeral });
+  const reply = await interaction.reply({
+    content: bold("Select a URL to download."),
+    components: [row],
+    ephemeral: true,
+  });
 
   const filter = i => i.customId === "urlSelect" && i.user.id === interaction.user.id;
 
@@ -57,13 +61,13 @@ module.exports = {
     let url;
 
     if (urls.length > 1) {
-      url = await selectUrl(interaction, urls, ephemeral);
+      url = await selectUrl(interaction, urls);
     } else {
       url = urls[0];
     }
 
     if (!url) return;
 
-    execute(interaction, url, ephemeral, "video");
+    execute(interaction, url, ephemeral, "video", message);
   },
 };

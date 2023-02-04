@@ -38,13 +38,15 @@ module.exports = {
           option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
         ),
     ),
-  async execute(interaction, url = null, ephemeral = null, subcommand = null) {
+  async execute(interaction, url = null, ephemeral = null, subcommand = null, targetMessage = null) {
     subcommand ??= interaction.options.getSubcommand();
     url ??= interaction.options.getString("url");
     ephemeral ??= interaction.options.getBoolean("ephemeral");
 
+    const isContextMenuCommand = interaction.isContextMenuCommand();
+
     if (!interaction.deferred && !interaction.replied) {
-      interaction.deferReply({ ephemeral });
+      interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
     }
 
     const isVideo = subcommand === "video";
@@ -119,7 +121,18 @@ module.exports = {
 
       const linkRow = new ActionRowBuilder().addComponents(linkButton);
 
-      await interaction.editReply({ content: "", files: [attachment], components: [linkRow], ephemeral });
+      if (isContextMenuCommand && !ephemeral) {
+        reply = await targetMessage.reply({
+          content: bold(`Requested by ${interaction.user}`),
+          files: [attachment],
+          components: [row],
+          allowedMentions: { repliedUser: false },
+        });
+
+        interaction.deleteReply();
+      } else {
+        reply = await interaction.editReply({ content: "", files: [attachment], components: [row], ephemeral });
+      }
     } catch (error) {
       console.error(error);
       await interaction.editReply({
