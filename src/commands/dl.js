@@ -110,7 +110,7 @@ module.exports = {
         name: `output.${extension}`,
       });
 
-      let linkLabel = jsonDump.webpage_url_domain;
+      let linkLabel = jsonDump.extractor === "generic" ? jsonDump.webpage_url_domain : jsonDump.extractor;
 
       if (jsonDump.channel) {
         linkLabel += ` @${jsonDump.channel}`;
