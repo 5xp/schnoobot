@@ -1,5 +1,17 @@
-const { SlashCommandBuilder, AttachmentBuilder, bold, blockQuote, escapeMarkdown } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  AttachmentBuilder,
+  bold,
+  blockQuote,
+  escapeMarkdown,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require("discord.js");
 const TikTokTTS = require("../utils/tiktok-util");
+
+const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Primary);
+const row = new ActionRowBuilder().addComponents(deleteButton);
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -36,21 +48,39 @@ module.exports = {
 
     const attachment = new AttachmentBuilder(buffer, { name: `tiktok-tts-${voice}.mp3` });
 
+    let reply;
+
     if (isContextMenuCommand) {
-      targetMessage.reply({
+      reply = await targetMessage.reply({
+        content: bold(`Requested by ${interaction.user}`),
         files: [attachment],
         allowedMentions: { repliedUser: false },
+        components: [row],
       });
 
       interaction.deleteReply();
+    } else {
+      reply = await interaction.editReply({
+        content: blockQuote(escapeMarkdown(message)),
+        files: [attachment],
+        components: [row],
+        ephemeral,
+      });
+    }
+
+    const filter = i => i.customId === "delete" && i.user.id === interaction.user.id;
+
+    const i = await reply.awaitMessageComponent({ filter, time: 180_000 }).catch(() => null);
+
+    if (!i) {
       return;
     }
 
-    await interaction.editReply({
-      content: blockQuote(escapeMarkdown(message)),
-      files: [attachment],
-      components: [],
-      ephemeral,
-    });
+    if (isContextMenuCommand) {
+      await reply.delete();
+      return;
+    }
+
+    interaction.deleteReply();
   },
 };
