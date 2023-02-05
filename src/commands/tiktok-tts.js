@@ -16,7 +16,7 @@ module.exports = {
     .addBooleanOption(option =>
       option.setName("ephemeral").setDescription("Whether the response should be ephemeral.").setRequired(false),
     ),
-  async execute(interaction, message = null, voice = null, ephemeral = null) {
+  async execute(interaction, message = null, voice = null, ephemeral = null, targetMessage = null) {
     if (!process.env.TIKTOK_SESSIONID) {
       return interaction.reply({ content: bold("TikTok session ID not set!"), ephemeral: true });
     }
@@ -25,6 +25,8 @@ module.exports = {
     voice ??= interaction.options.getString("voice");
     ephemeral ??= interaction.options.getBoolean("ephemeral") ?? false;
 
+    const isContextMenuCommand = interaction.isContextMenuCommand();
+
     if (!interaction.replied && !interaction.deferred) {
       interaction.deferReply({ ephemeral });
     }
@@ -32,7 +34,17 @@ module.exports = {
     const base64 = await TikTokTTS.getTTSBase64(voice, message);
     const buffer = Buffer.from(base64, "base64");
 
-    const attachment = new AttachmentBuilder(buffer, { name: "tts.mp3" });
+    const attachment = new AttachmentBuilder(buffer, { name: `tiktok-tts-${voice}.mp3` });
+
+    if (isContextMenuCommand) {
+      targetMessage.reply({
+        files: [attachment],
+        allowedMentions: { repliedUser: false },
+      });
+
+      interaction.deleteReply();
+      return;
+    }
 
     await interaction.editReply({
       content: blockQuote(escapeMarkdown(message)),

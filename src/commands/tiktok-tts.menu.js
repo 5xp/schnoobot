@@ -23,11 +23,15 @@ async function selectVoice(interaction) {
 
   const row = new ActionRowBuilder().addComponents(voiceSelect);
 
-  const reply = await interaction.reply({ content: bold("Select a voice to use."), components: [row] });
+  const reply = await interaction.reply({
+    content: bold("Select a voice to use."),
+    components: [row],
+    ephemeral: true,
+  });
 
   const filter = i => i.customId === "voiceSelect" && i.user.id === interaction.user.id;
 
-  const i = await reply.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
+  const i = await reply.awaitMessageComponent({ filter, time: 60_000 }).catch(() => null);
 
   if (!i) {
     interaction.deleteReply();
@@ -46,6 +50,6 @@ module.exports = {
 
     if (!voice) return;
 
-    execute(interaction, content, voice, false);
+    execute(interaction, content, voice, false, message);
   },
 };
