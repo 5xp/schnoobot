@@ -6,8 +6,10 @@ const loadCommands = require("./load-commands.js");
 const EconomyManager = require("./EconomyManager.js");
 
 const client = new Client({
-  restRequestTimeout: 80_000,
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildEmojisAndStickers],
+  rest: {
+    timeout: 80_000,
+  },
 });
 loadCommands(client);
 
