@@ -5,7 +5,10 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const loadCommands = require("./load-commands.js");
 const EconomyManager = require("./EconomyManager.js");
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildEmojisAndStickers] });
+const client = new Client({
+  restRequestTimeout: 80_000,
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildEmojisAndStickers],
+});
 loadCommands(client);
 
 client.economy = new EconomyManager();
