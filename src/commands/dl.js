@@ -55,7 +55,6 @@ module.exports = {
 
     const fileName = `${interaction.user.id}-${Date.now()}`;
     const filePath = `./temp/${fileName}`;
-    let extension;
 
     const uploadLimit = getUploadLimit(interaction.guild);
 
@@ -63,6 +62,7 @@ module.exports = {
     const options = {
       f: format,
       formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
+      maxFilesize: `${uploadLimit}M`,
       o: `${filePath}.%(ext)s`,
     };
 
@@ -70,7 +70,7 @@ module.exports = {
       options.cookies = process.env.COOKIES_TXT_PATH;
     }
 
-    let output, jsonDump;
+    let output, jsonDump, extension;
 
     try {
       output = youtubedl(url, options);
@@ -82,23 +82,35 @@ module.exports = {
 
       [output, jsonDump] = await Promise.all([output, jsonDump]);
 
+      if (output.includes("Aborting.")) {
+        if (!ephemeral) {
+          await interaction.deleteReply();
+        }
+
+        const size = +output.match(/\d+(?= bytes >)/) / 1_000_000;
+
+        await interaction.followUp({
+          content: bold(
+            `Failed to download: The requested media is too large (${size.toFixed(2)}MB > ${uploadLimit}MB).`,
+          ),
+          ephemeral: true,
+        });
+
+        return;
+      }
+
       extension = jsonDump.ext ?? (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
     } catch (error) {
       console.error(error);
 
-      await interaction.editReply({
-        content: bold("An error occurred while downloading the media!"),
-        ephemeral,
-      });
+      if (!ephemeral) {
+        await interaction.deleteReply();
+      }
 
-      interaction.followUp({
-        content: bold(`An error occurred while downloading media from <${url}>:`) + codeBlock(error.stderr),
+      await interaction.followUp({
+        content: bold("An error occurred while downloading media:") + codeBlock(error.stderr),
         ephemeral: true,
       });
-
-      setTimeout(() => {
-        interaction.deleteReply();
-      }, 5_000);
 
       return;
     }
@@ -147,14 +159,15 @@ module.exports = {
       }
     } catch (error) {
       console.error(error);
-      await interaction.editReply({
-        content: bold("An error occurred while uploading the file! The file may be too large."),
-        ephemeral,
-      });
 
-      setTimeout(() => {
-        interaction.deleteReply();
-      }, 5_000);
+      if (!ephemeral) {
+        await interaction.deleteReply();
+      }
+
+      await interaction.followUp({
+        content: bold("An error occurred while uploading media:" + codeBlock(error.message)),
+        ephemeral: true,
+      });
 
       return;
     } finally {
