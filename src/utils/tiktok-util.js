@@ -60,38 +60,59 @@ const voices = [
   "en_male_m03_sunshine_soon", // Sunshine Soon
 
   // Other
-  "en_male_narration", // narrator
+  "en_male_narration", // Story Teller
   "en_male_funny", // wacky
   "en_female_emotional", // peaceful
+  "en_male_grinch", // Trickster
+  "en_male_wizard", // Magician
+  "en_female_ht_f08_halloween", // Opera
+  "en_female_madam_leota", // Madame Leota
+  "en_male_ghosthost", // Ghost Host
+  "en_male_pirate", // Pirate
+  "en_female_ht_f08_glorious", // Euphoric
+  "en_male_sing_funny_it_goes_up", // Hypetrain
+  "en_female_samc", // Empathetic
+  "en_male_cody", // Serious
+  "en_female_ht_f08_wonderful_world", // Melodrama
+  "en_male_m2_xhxs_m03_silly", // Quirky Time
+  "es_mx_002", // Warm
+  "en_us_007", // Professor
+  "en_us_009", // Scientist
+  "en_us_010", // Confidence
+  "en_us_006", // Joey
+  "en_au_001", // Metro
+  "en_uk_001", // Narrator
+  "en_us_002", // Jessie
+  "en_au_002", // Smooth
 ];
 
 // Limited to 25 voices because only 25 choices are allowed in Discord
 const voicesObject = {
   "Ghost Face": "en_us_ghostface",
-  Chewbacca: "en_us_chewbacca",
-  C3PO: "en_us_c3po",
-  Stitch: "en_us_stitch",
+  "Story Teller": "en_male_narration",
+  Trickster: "en_male_grinch",
+  "Madame Leota": "en_female_madam_leota",
+  Pirate: "en_male_pirate",
+  Warm: "es_mx_002",
   Stormtrooper: "en_us_stormtrooper",
   Rocket: "en_us_rocket",
+  "Ghost Host": "en_male_ghosthost",
+  Wacky: "en_male_funny",
+  Peaceful: "en_female_emotional",
+  Metro: "en_au_001",
+  Smooth: "en_au_002",
+  Narrator: "en_uk_001",
+  Jessie: "en_us_002",
+  Joey: "en_us_006",
+  Professor: "en_us_007",
+  Scientist: "en_us_009",
+  Confidence: "en_us_010",
+  Melodrama: "en_female_ht_f08_wonderful_world",
+  Euphoric: "en_female_ht_f08_glorious",
   Alto: "en_female_f08_salut_damour",
   Tenor: "en_male_m03_lobby",
   "Warmy Breeze": "en_female_f08_warmy_breeze",
   "Sunshine Soon": "en_male_m03_sunshine_soon",
-  Narrator: "en_male_narration",
-  Wacky: "en_male_funny",
-  Peaceful: "en_female_emotional",
-  "English AU - Female": "en_au_001",
-  "English AU - Male": "en_au_002",
-  "English UK - Male 1": "en_uk_001",
-  "English UK - Male 2": "en_uk_003",
-  "English US - Female (Int. 1)": "en_us_001",
-  "English US - Female (Int. 2)": "en_us_002",
-  "English US - Male 1": "en_us_006",
-  "English US - Male 2": "en_us_007",
-  "English US - Male 3": "en_us_009",
-  "English US - Male 4": "en_us_010",
-  "French - Male 1": "fr_001",
-  "French - Male 2": "fr_002",
 };
 
 const voiceStringOptionChoices = Object.entries(voicesObject).map(([name, value]) => ({ name, value }));
