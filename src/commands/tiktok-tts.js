@@ -7,6 +7,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  codeBlock,
 } = require("discord.js");
 const TikTokTTS = require("../utils/tiktok-util");
 
@@ -43,29 +44,41 @@ module.exports = {
       interaction.deferReply({ ephemeral });
     }
 
-    const base64 = await TikTokTTS.getTTSBase64(voice, message);
-    const buffer = Buffer.from(base64, "base64");
-
-    const attachment = new AttachmentBuilder(buffer, { name: `tiktok-tts-${voice}.mp3` });
-
     let reply;
 
-    if (isContextMenuCommand) {
-      reply = await targetMessage.reply({
-        content: bold(`Requested by ${interaction.user}`),
-        files: [attachment],
-        allowedMentions: { repliedUser: false },
-        components: [row],
+    try {
+      const base64 = await TikTokTTS.getTTSBase64(voice, message);
+      const buffer = Buffer.from(base64, "base64");
+
+      const attachment = new AttachmentBuilder(buffer, { name: `tiktok-tts-${voice}.mp3` });
+
+      if (isContextMenuCommand) {
+        reply = await targetMessage.reply({
+          content: bold(`Requested by ${interaction.user}`),
+          files: [attachment],
+          allowedMentions: { repliedUser: false },
+          components: [row],
+        });
+
+        interaction.deleteReply();
+      } else {
+        reply = await interaction.editReply({
+          content: blockQuote(escapeMarkdown(message)),
+          files: [attachment],
+          components: [row],
+          ephemeral,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      reply = await interaction.editReply({
+        content: bold("An error occurred while creating TTS:\n" + codeBlock(error.message)),
+        ephemeral: true,
+        components: [],
       });
 
-      interaction.deleteReply();
-    } else {
-      reply = await interaction.editReply({
-        content: blockQuote(escapeMarkdown(message)),
-        files: [attachment],
-        components: [row],
-        ephemeral,
-      });
+      return;
     }
 
     const filter = i => i.customId === "delete" && i.user.id === interaction.user.id;
