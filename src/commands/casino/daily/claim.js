@@ -1,5 +1,5 @@
 const { EmbedBuilder, time, bold } = require("discord.js");
-const { getNumber } = require("../../../EconomyManager");
+const { getNumber } = require("../../../libs/EconomyManager");
 const formatter = new Intl.RelativeTimeFormat("en", { style: "short" });
 
 function largestTimeUnit(seconds) {

@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = require("discord.js");
-const { getNumber, validateAmount } = require("../../EconomyManager");
+const { getNumber, validateAmount } = require("../../libs/EconomyManager");
 
 function constructComponents(options) {
   const { selected = null, wager, originalWager } = options;

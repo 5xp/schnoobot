@@ -1,5 +1,5 @@
 const { EmbedBuilder, bold } = require("discord.js");
-const { getNumber } = require("../../../EconomyManager");
+const { getNumber } = require("../../../libs/EconomyManager");
 
 module.exports = async interaction => {
   const user = interaction.options.getUser("user") ?? interaction.user;
