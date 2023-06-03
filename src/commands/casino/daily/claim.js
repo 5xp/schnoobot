@@ -1,5 +1,5 @@
 const { EmbedBuilder, time, bold } = require("discord.js");
-const { getNumber } = require("../../../libs/EconomyManager");
+const Currency = require("../../../libs/Currency");
 const formatter = new Intl.RelativeTimeFormat("en", { style: "short" });
 
 function largestTimeUnit(seconds) {
@@ -43,7 +43,7 @@ function constructEmbed(response) {
   const fields = [
     {
       name: bold("Balance"),
-      value: getNumber(response.balance).formatted,
+      value: Currency.format(response.balance),
       inline: true,
     },
     {
@@ -68,7 +68,7 @@ function constructEmbed(response) {
       .setColor("Orange")
       .setDescription(`You were late by ${bold(lateBy)}!`);
 
-    fields.unshift({ name: "Reward", value: getNumber(response.reward).formatted, inline: true });
+    fields.unshift({ name: "Reward", value: Currency.format(response.reward), inline: true });
   } else {
     embed.setTitle("🎉 Daily Reward").setColor("Green");
 
@@ -80,7 +80,7 @@ function constructEmbed(response) {
       embed.setDescription(`You almost missed your daily by ${bold(almostLateBy)}!`);
     }
 
-    fields.unshift({ name: "Reward", value: getNumber(response.reward).formatted, inline: true });
+    fields.unshift({ name: "Reward", value: Currency.format(response.reward), inline: true });
   }
 
   embed.addFields(...fields);

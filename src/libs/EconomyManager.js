@@ -212,29 +212,6 @@ class EconomyManager {
 
     return CasinoLogs.findAll(filter);
   }
-
-  static validateAmount(amount, balance) {
-    if (amount <= 0) {
-      return new Error("Amount must be greater than $0.00!");
-    }
-
-    if (amount > balance) {
-      return new Error(`Insufficient balance! Your balance is ${EconomyManager.getNumber(balance).formatted}.`);
-    }
-
-    return true;
-  }
-
-  static getNumber(inputAmount, balance = null) {
-    if (String(inputAmount).toLowerCase() === "all") {
-      inputAmount = balance;
-    }
-
-    const number = numeral(inputAmount);
-    const formatted = number.format();
-
-    return { formatted, value: number.value() };
-  }
 }
 
 module.exports = EconomyManager;
