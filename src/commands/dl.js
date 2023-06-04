@@ -12,7 +12,7 @@ const {
 const youtubedl = require("youtube-dl-exec");
 const readdir = require("util").promisify(require("node:fs").readdir);
 
-const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Danger);
+const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
 
 module.exports = {
   data: new SlashCommandBuilder()
