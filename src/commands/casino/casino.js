@@ -55,6 +55,22 @@ module.exports = {
         .addStringOption(option =>
           option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
         ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName("mines")
+        .setDescription("Choose how many mines you want. If you hit a mine, you lose.")
+        .addNumberOption(option =>
+          option
+            .setName("mines")
+            .setDescription("The number of mines to choose")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(24),
+        )
+        .addStringOption(option =>
+          option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
+        ),
     ),
   async execute(interaction) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
