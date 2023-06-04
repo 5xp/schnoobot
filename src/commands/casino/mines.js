@@ -106,7 +106,7 @@ class MineGrid {
     const originalWagerButton = new ButtonBuilder()
       .setCustomId("originalWager")
       .setLabel(`Play again (${originalWager.formatted})`)
-      .setStyle(ButtonStyle.Danger);
+      .setStyle(ButtonStyle.Secondary);
 
     switch (selected) {
       case "playAgain":
@@ -379,15 +379,16 @@ module.exports = async (interaction, numMines = null, wager = null, originalWage
     gridComponentCollector.resetTimer();
     cashOutCollector.resetTimer();
 
+    const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
+    i.update({ embeds: [embed], components: grid.cellActionRows });
+
     if (grid.gameOver) {
       optionResponse.edit({
         components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
       });
+
       handleGameOver();
     }
-
-    const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
-    await i.update({ embeds: [embed], components: grid.cellActionRows });
   });
 
   cashOutCollector.on("collect", async i => {
@@ -396,6 +397,7 @@ module.exports = async (interaction, numMines = null, wager = null, originalWage
     const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
     gridResponse.edit({ embeds: [embed], components: grid.cellActionRows });
     i.update({ components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager }) });
+
     handleGameOver();
   });
 
