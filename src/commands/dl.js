@@ -66,124 +66,27 @@ module.exports = {
       o: `${filePath}.%(ext)s`,
     };
 
-    let output, jsonDump, extension;
+    let jsonDump, extension;
 
     try {
-      output = youtubedl(url, options);
-
-      jsonDump = youtubedl(url, {
-        ...options,
-        dumpSingleJson: true,
-      });
-
-      [output, jsonDump] = await Promise.all([output, jsonDump]);
-
-      if (output.includes("Aborting.")) {
-        if (!ephemeral) {
-          await interaction.deleteReply();
-        }
-
-        const size = +output.match(/\d+(?= bytes >)/) / 1_000_000;
-
-        await interaction.followUp({
-          content: bold(
-            `Failed to download: The requested media is too large (${size.toFixed(2)}MB > ${uploadLimit}MB).`,
-          ),
-          ephemeral: true,
-        });
-
-        return;
-      }
-
-      extension = jsonDump.ext ?? (await readdir("./temp")).find(file => file.startsWith(fileName)).split(".")[1];
+      ({ jsonDump, extension } = await tryDownload(url, options));
     } catch (error) {
-      console.error(error);
-
-      if (!ephemeral) {
-        await interaction.deleteReply();
-      }
-
-      await interaction.followUp({
-        content: bold("An error occurred while downloading media:") + codeBlock(error.stderr),
-        ephemeral: true,
-      });
-
+      handleDownloadError(interaction, error, ephemeral);
       return;
     }
 
     let reply;
 
     try {
-      const attachment = new AttachmentBuilder(`${filePath}.${extension}`, {
-        name: `output.${extension}`,
-      });
-
-      let linkLabel = jsonDump.extractor;
-
-      if (["generic", "html5"].includes(linkLabel)) {
-        linkLabel = jsonDump.webpage_url_domain;
-      }
-
-      if (jsonDump.channel) {
-        linkLabel += ` @${jsonDump.channel}`;
-      } else if (jsonDump.uploader) {
-        linkLabel += ` @${jsonDump.uploader}`;
-      }
-
-      const linkButton = new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
-        .setLabel(linkLabel)
-        .setURL(jsonDump.webpage_url);
-
-      const row = new ActionRowBuilder().addComponents(linkButton);
-
-      if (!ephemeral) {
-        row.addComponents(deleteButton);
-      }
-
-      if (isContextMenuCommand && !ephemeral) {
-        reply = await targetMessage.reply({
-          content: bold(`Requested by ${interaction.user}`),
-          files: [attachment],
-          components: [row],
-          allowedMentions: { repliedUser: false },
-        });
-
-        interaction.deleteReply();
-      } else {
-        reply = await interaction.editReply({ content: "", files: [attachment], components: [row], ephemeral });
-      }
+      reply = await createReply(interaction, filePath, extension, jsonDump, targetMessage, ephemeral);
     } catch (error) {
-      console.error(error);
-
-      if (!ephemeral) {
-        await interaction.deleteReply();
-      }
-
-      await interaction.followUp({
-        content: bold("An error occurred while uploading media:" + codeBlock(error.message)),
-        ephemeral: true,
-      });
-
+      handleUploadError(interaction, error, ephemeral);
       return;
     } finally {
       unlink(`${filePath}.${extension}`, () => null);
     }
 
-    const filter = i => i.customId === "delete" && i.user.id === interaction.user.id;
-
-    const i = await reply.awaitMessageComponent({ filter, time: 180_000 }).catch(() => null);
-
-    if (!i) {
-      return;
-    }
-
-    if (isContextMenuCommand) {
-      await reply.delete();
-      return;
-    }
-
-    interaction.deleteReply();
+    handleComponentInteraction(interaction, reply);
   },
 };
 
@@ -200,4 +103,116 @@ function getUploadLimit(guild) {
     default:
       return 8;
   }
+}
+
+async function tryDownload(url, options) {
+  const output = await youtubedl(url, options);
+  const jsonDump = await youtubedl(url, {
+    ...options,
+    dumpSingleJson: true,
+  });
+
+  if (output.includes("Aborting.")) {
+    const size = +output.match(/\d+(?= bytes >)/) / 1_000_000;
+    const error = new Error();
+    error.stderr = `The requested media is too large (${size.toFixed(2)}MB).`;
+    throw error;
+  }
+
+  const extension =
+    jsonDump.ext ?? (await readdir("./temp")).find(file => file.startsWith(options.output)).split(".")[1];
+
+  return { output, jsonDump, extension };
+}
+
+async function handleDownloadError(interaction, error, ephemeral) {
+  console.error(error);
+
+  if (!ephemeral) {
+    await interaction.deleteReply();
+  }
+
+  await interaction.followUp({
+    content: bold("An error occurred while downloading media:") + codeBlock(error.stderr),
+    ephemeral: true,
+  });
+}
+
+async function handleUploadError(interaction, error, ephemeral) {
+  console.error(error);
+
+  if (!ephemeral) {
+    await interaction.deleteReply();
+  }
+
+  await interaction.followUp({
+    content: bold("An error occurred while uploading media:" + codeBlock(error.message)),
+    ephemeral: true,
+  });
+}
+
+function getLabel(jsonDump) {
+  let linkLabel = jsonDump.extractor;
+
+  if (["generic", "html5"].includes(linkLabel)) {
+    linkLabel = jsonDump.webpage_url_domain;
+  }
+
+  if (jsonDump.channel) {
+    linkLabel += ` @${jsonDump.channel}`;
+  } else if (jsonDump.uploader) {
+    linkLabel += ` @${jsonDump.uploader}`;
+  }
+
+  return linkLabel;
+}
+
+async function handleComponentInteraction(interaction, reply) {
+  const filter = i => i.customId === "delete" && i.user.id === interaction.user.id;
+
+  const i = await reply.awaitMessageComponent({ filter, time: 180_000 }).catch(() => null);
+
+  if (!i) {
+    return;
+  }
+
+  if (interaction.isContextMenuCommand()) {
+    await reply.delete();
+    return;
+  }
+
+  interaction.deleteReply();
+}
+
+async function createReply(interaction, filePath, extension, jsonDump, targetMessage, ephemeral) {
+  let reply;
+
+  const attachment = new AttachmentBuilder(`${filePath}.${extension}`, {
+    name: `output.${extension}`,
+  });
+
+  const linkLabel = getLabel(jsonDump);
+
+  const linkButton = new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(linkLabel).setURL(jsonDump.webpage_url);
+
+  const row = new ActionRowBuilder().addComponents(linkButton);
+
+  if (!ephemeral) {
+    row.addComponents(deleteButton);
+  }
+
+  if (interaction.isContextMenuCommand() && !ephemeral) {
+    reply = await targetMessage.reply({
+      content: bold(`Requested by ${interaction.user}`),
+      files: [attachment],
+      components: [row],
+      allowedMentions: { repliedUser: false },
+    });
+
+    interaction.deleteReply();
+  } else {
+    reply = await interaction.editReply({ content: "", files: [attachment], components: [row], ephemeral });
+  }
+
+  return reply;
 }
