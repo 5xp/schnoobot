@@ -58,7 +58,7 @@ module.exports = {
 
     const uploadLimit = getUploadLimit(interaction.guild);
 
-    const format = isVideo ? "(bv[ext=mp4]+ba[ext=m4a])[format_id!*=dash]/b[ext=mp4]/b" : "ba[ext=mp3]/ba";
+    const format = isVideo ? "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/b" : "ba[ext=mp3]/ba";
     const options = {
       f: format,
       formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
