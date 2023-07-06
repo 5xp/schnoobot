@@ -17,7 +17,8 @@ module.exports = {
       await command.execute(interaction);
     } catch (error) {
       console.error(error);
-      await interaction.reply({ content: "There was an error while executing this command!", ephemeral: true });
+      const func = interaction.deferred || interaction.replied ? interaction.followUp : interaction.reply;
+      func.call(interaction, { content: "There was an error while executing this command!", ephemeral: true });
     }
   },
 };
