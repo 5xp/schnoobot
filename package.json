@@ -2,11 +2,14 @@
   "name": "schnoobot",
   "version": "1.0.0",
   "description": "",
-  "main": "src/bot.js",
+  "main": "./dist/bot.js",
+  "exports": "./dist/bot.js",
   "scripts": {
-    "start": "node src/bot.js",
-    "deploy": "node src/deploy-commands.js",
-    "init-db": "node src/db-init.js"
+    "build": "tsc",
+    "start": "node -r ts-node/register/transpile-only -r tsconfig-paths/register .",
+    "deploy": "node dist/deploy-commands.js",
+    "clear": "node dist/clear-commands.js",
+    "init-db": "node dist/db-init.js"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +24,11 @@
     "youtube-dl-exec": "^2.1.11"
   },
   "devDependencies": {
+    "@types/node": "^20.5.0",
     "eslint": "^8.30.0",
-    "prettier": "^2.8.1"
+    "prettier": "^2.8.1",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.1.6"
   }
 }

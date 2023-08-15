@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = req
 const Currency = require("../../libs/Currency");
 const numeral = require("numeral");
 
-const size = 5;
+const gridSize = 5;
 const factorial = [
   1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800, 479001600, 6227020800, 87178291200, 1307674368000,
   20922789888000, 355687428096000, 6402373705728000, 121645100408832000, 2432902008176640000, 51090942171709440000,
@@ -284,7 +284,7 @@ class Cell {
   }
 
   get id() {
-    return String(this.x * size + this.y);
+    return String(this.x * gridSize + this.y);
   }
 
   get button() {
@@ -316,7 +316,7 @@ class Cell {
   }
 }
 
-module.exports = async (interaction, numMines = null, wager = null, originalWager = null) => {
+module.exports = async (interaction, client, numMines = null, wager = null, originalWager = null) => {
   wager ??= interaction.options.getString("wager");
   numMines ??= interaction.options.getNumber("mines");
 
@@ -328,7 +328,7 @@ module.exports = async (interaction, numMines = null, wager = null, originalWage
     return interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
   }
 
-  const grid = new MineGrid(size, numMines);
+  const grid = new MineGrid(gridSize, numMines);
   const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
   const gridResponse = await interaction.reply({ embeds: [embed], components: grid.cellActionRows, fetchReply: true });
   const optionResponse = await interaction.followUp({
@@ -365,7 +365,7 @@ module.exports = async (interaction, numMines = null, wager = null, originalWage
         originalWager = newWager;
       }
 
-      module.exports(optionInteraction, numMines, newWager, originalWager);
+      module.exports(optionInteraction, client, numMines, newWager, originalWager);
     }
 
     optionResponse.edit({

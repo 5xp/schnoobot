@@ -1,4 +1,4 @@
-const Sequelize = require("sequelize");
+import { Sequelize } from "sequelize";
 
 const sequelize = new Sequelize("database", "username", "password", {
   host: "localhost",
@@ -6,9 +6,6 @@ const sequelize = new Sequelize("database", "username", "password", {
   logging: false,
   storage: "database.sqlite",
 });
-
-require("./models/Users.js")(sequelize, Sequelize.DataTypes);
-require("./models/CasinoLogs.js")(sequelize, Sequelize.DataTypes);
 
 const force = process.argv.includes("--force") || process.argv.includes("-f");
 
@@ -19,3 +16,5 @@ sequelize
     sequelize.close();
   })
   .catch(console.error);
+
+export default sequelize;

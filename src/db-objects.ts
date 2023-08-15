@@ -1,4 +1,6 @@
-const Sequelize = require("sequelize");
+import { Sequelize } from "sequelize";
+import UsersModel from "./models/Users";
+import CasinoLogsModel from "./models/CasinoLogs";
 
 const sequelize = new Sequelize("database", "username", "password", {
   host: "localhost",
@@ -7,10 +9,10 @@ const sequelize = new Sequelize("database", "username", "password", {
   storage: "database.sqlite",
 });
 
-const Users = require("./models/Users.js")(sequelize, Sequelize.DataTypes);
-const CasinoLogs = require("./models/CasinoLogs.js")(sequelize, Sequelize.DataTypes);
+const Users = UsersModel(sequelize);
+const CasinoLogs = CasinoLogsModel(sequelize);
 
 Users.hasMany(CasinoLogs, { foreignKey: "user_id", as: "casino_logs" });
 CasinoLogs.belongsTo(Users, { foreignKey: "user_id", targetKey: "user_id", as: "user" });
 
-module.exports = { Users, CasinoLogs };
+export { Users, CasinoLogs };

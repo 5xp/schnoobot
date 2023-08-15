@@ -76,7 +76,7 @@ function flipCoin() {
   return ["heads", "tails"][Math.floor(Math.random() * 2)];
 }
 
-module.exports = async (interaction, choice = null, wager = null, originalWager = null) => {
+module.exports = async (interaction, client, choice = null, wager = null, originalWager = null) => {
   wager ??= interaction.options.getString("wager");
   choice ??= interaction.options.getString("choice");
 
@@ -118,7 +118,7 @@ module.exports = async (interaction, choice = null, wager = null, originalWager 
       newWager = new Currency(originalWager.value, balance);
       originalWager = newWager;
     }
-    module.exports(componentInteraction, choice, newWager, originalWager);
+    module.exports(componentInteraction, client, choice, newWager, originalWager);
   }
 
   interaction.editReply({

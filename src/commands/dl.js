@@ -40,7 +40,7 @@ module.exports = {
           option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
         ),
     ),
-  async execute(interaction, url = null, ephemeral = null, subcommand = null, targetMessage = null) {
+  async execute(interaction, client, url = null, ephemeral = null, subcommand = null, targetMessage = null) {
     subcommand ??= interaction.options.getSubcommand();
     url ??= interaction.options.getString("url");
     ephemeral ??= interaction.options.getBoolean("ephemeral");

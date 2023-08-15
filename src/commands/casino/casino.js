@@ -72,12 +72,12 @@ module.exports = {
           option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
         ),
     ),
-  async execute(interaction) {
+  async execute(interaction, client) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const subcommand = interaction.options.getSubcommand();
 
     const commandPath = subcommandGroup ? `./${subcommandGroup}/${subcommand}` : `./${subcommand}`;
 
-    require(commandPath)(interaction);
+    require(commandPath)(interaction, client);
   },
 };

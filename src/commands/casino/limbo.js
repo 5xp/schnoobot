@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold, ComponentType } = require("discord.js");
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = require("discord.js");
 const Currency = require("../../libs/Currency");
 const numeral = require("numeral");
 
@@ -93,7 +93,7 @@ function getLimboResult() {
   return Math.floor(result * 100) / 100;
 }
 
-module.exports = async (interaction, targetMultiplier = null, wager = null, originalWager = null) => {
+module.exports = async (interaction, client, targetMultiplier = null, wager = null, originalWager = null) => {
   wager ??= interaction.options.getString("wager");
   targetMultiplier ??= interaction.options.getNumber("target");
 
@@ -138,7 +138,7 @@ module.exports = async (interaction, targetMultiplier = null, wager = null, orig
       originalWager = newWager;
     }
 
-    module.exports(componentInteraction, targetMultiplier, newWager, originalWager);
+    module.exports(componentInteraction, client, targetMultiplier, newWager, originalWager);
   }
 
   interaction.editReply({

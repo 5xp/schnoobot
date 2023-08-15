@@ -47,7 +47,7 @@ async function selectUrl(interaction, urls) {
 
 module.exports = {
   data: new ContextMenuCommandBuilder().setName("Download Videos").setType(ApplicationCommandType.Message),
-  async execute(interaction, ephemeral = false) {
+  async execute(interaction, client, ephemeral = false) {
     const message = interaction.targetMessage;
 
     let urls = message.content.match(urlRegex);
@@ -68,6 +68,6 @@ module.exports = {
 
     if (!url) return;
 
-    execute(interaction, url, ephemeral, "video", message);
+    execute(interaction, client, url, ephemeral, "video", message);
   },
 };

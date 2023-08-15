@@ -1,5 +1,5 @@
 const { Collection } = require("discord.js");
-const { Users, CasinoLogs } = require("../db-objects.js");
+const { Users, CasinoLogs } = require("../db-objects");
 const { Op } = require("sequelize");
 
 const numeral = require("numeral");
