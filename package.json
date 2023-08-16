@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node -r ts-node/register/transpile-only -r tsconfig-paths/register .",
-    "deploy": "node dist/deploy-commands.js",
-    "clear": "node dist/clear-commands.js",
-    "init-db": "node dist/db-init.js"
+    "deploy": "node -r ts-node/register/transpile-only -r tsconfig-paths/register dist/deploy-commands.js",
+    "clear": "node -r ts-node/register/transpile-only -r tsconfig-paths/register dist/clear-commands.js",
+    "init-db": "node -r ts-node/register/transpile-only -r tsconfig-paths/register dist/db-init.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.5.0",
+    "@types/numeral": "^2.0.2",
     "eslint": "^8.30.0",
     "prettier": "^2.8.1",
     "ts-node": "^10.9.1",

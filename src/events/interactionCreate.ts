@@ -13,6 +13,7 @@ export default {
 
     if (!command) {
       console.error(`Command ${interaction.commandName} not found.`);
+      interaction.reply({ content: "Command not found.", ephemeral: true });
       return;
     }
 

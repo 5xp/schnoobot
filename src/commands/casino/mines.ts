@@ -1,6 +1,17 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold } = require("discord.js");
-const Currency = require("../../libs/Currency");
-const numeral = require("numeral");
+import {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  bold,
+  User,
+  ColorResolvable,
+  ChatInputCommandInteraction,
+  MessageComponentInteraction,
+} from "discord.js";
+import Currency from "@common/Currency";
+import numeral from "numeral";
+import ExtendedClient from "@common/ExtendedClient";
 
 const gridSize = 5;
 const factorial = [
@@ -10,13 +21,15 @@ const factorial = [
 ];
 
 const buttonStyleColors = new Map([
-  [ButtonStyle.Primary, "#5865F2"],
-  [ButtonStyle.Secondary, "#4E5058"],
-  [ButtonStyle.Success, "#248046"],
-  [ButtonStyle.Danger, "#DA373C"],
+  [ButtonStyle.Primary, "#5865F2" as ColorResolvable],
+  [ButtonStyle.Secondary, "#4E5058" as ColorResolvable],
+  [ButtonStyle.Success, "#248046" as ColorResolvable],
+  [ButtonStyle.Danger, "#DA373C" as ColorResolvable],
 ]);
 
-const gemStyles = [
+type EmojiStylePair = { emoji: string; style: ButtonStyle };
+
+const gemStyles: Array<EmojiStylePair> = [
   { emoji: "💎", style: ButtonStyle.Primary },
   { emoji: "🧊", style: ButtonStyle.Primary },
   { emoji: "💍", style: ButtonStyle.Primary },
@@ -25,7 +38,7 @@ const gemStyles = [
   { emoji: "🍉", style: ButtonStyle.Success },
 ];
 
-const mineStyles = [
+const mineStyles: Array<EmojiStylePair> = [
   { emoji: "💣", style: ButtonStyle.Danger },
   { emoji: "☠️", style: ButtonStyle.Danger },
   { emoji: "⚡", style: ButtonStyle.Danger },
@@ -35,16 +48,22 @@ class MineGrid {
   gameOver = false;
   gameState = "playing";
   numCellsRevealed = 0;
+  size: number;
+  numMines: number;
+  grid: Cell[][];
+  gemStyle: EmojiStylePair;
+  mineStyle: EmojiStylePair;
 
-  constructor(size, numMines) {
+  constructor(size: number, numMines: number) {
     this.size = size;
     this.numMines = numMines;
-    this.#getButtonStyles();
-    this.grid = this.#initializeGrid();
+    this.gemStyle = this.getGemStyle();
+    this.mineStyle = this.getMineStyle();
+    this.grid = this.initializeGrid();
   }
 
   get currentWinProbability() {
-    return this.#calculateWinProbability(this.numCellsRevealed + 1);
+    return this.calculateWinProbability(this.numCellsRevealed + 1);
   }
 
   get nextMultiplier() {
@@ -52,7 +71,7 @@ class MineGrid {
   }
 
   get lastWinProbability() {
-    return this.#calculateWinProbability(this.numCellsRevealed);
+    return this.calculateWinProbability(this.numCellsRevealed);
   }
 
   get currentMultiplier() {
@@ -70,7 +89,7 @@ class MineGrid {
       for (const cell of row) {
         components.push(cell.button);
       }
-      rows.push(new ActionRowBuilder().addComponents(...components));
+      rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...components));
     }
     return rows;
   }
@@ -87,16 +106,20 @@ class MineGrid {
     return { gemButton, mineButton, unrevealedButton };
   }
 
-  constructOptionActionRow(options = {}) {
+  createOptionActionRow(options?: CreateActionRowOptions): ActionRowBuilder<ButtonBuilder>[] {
     if (!this.gameOver) {
       const cashOutButton = new ButtonBuilder()
         .setStyle(ButtonStyle.Success)
         .setLabel("Cash out")
         .setCustomId("cashOut");
-      return [new ActionRowBuilder().addComponents(cashOutButton)];
+      return [new ActionRowBuilder<ButtonBuilder>().addComponents(cashOutButton)];
     }
 
-    const { selected = null, wager, originalWager, balance } = options;
+    if (!options) {
+      throw new Error("Missing required options");
+    }
+
+    const { selected, wager, originalWager } = options;
 
     const playAgainButton = new ButtonBuilder()
       .setCustomId("playAgain")
@@ -123,17 +146,22 @@ class MineGrid {
         break;
     }
 
-    if (wager.value > balance) playAgainButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
-    if (originalWager.value > balance) originalWagerButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+    if (!selected && wager.value > options.balance) {
+      playAgainButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+    }
 
-    const row = new ActionRowBuilder().addComponents(playAgainButton);
+    if (!selected && originalWager.value > options.balance) {
+      originalWagerButton.setStyle(ButtonStyle.Secondary).setDisabled(true);
+    }
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(playAgainButton);
 
     if (!wager.isEqual(originalWager) || wager.allIn) row.addComponents(originalWagerButton);
 
     return [row];
   }
 
-  constructEmbed(options = {}) {
+  createEmbed(options: CreateEmbedOptions): EmbedBuilder {
     const { user, wager, balance } = options;
 
     const lastWinChanceFormatted = numeral(this.lastWinProbability).format("0.00%");
@@ -157,7 +185,7 @@ class MineGrid {
     switch (this.gameState) {
       case "playing":
         embed
-          .setColor(buttonStyleColors.get(ButtonStyle.Secondary))
+          .setColor(buttonStyleColors.get(ButtonStyle.Secondary)!)
           .addFields(
             { name: bold(`Next ${this.gemStyle.emoji} %`), value: nextTileChanceFormatted, inline: true },
             { name: bold("Current Profit"), value: currentProfitString, inline: true },
@@ -166,7 +194,7 @@ class MineGrid {
         break;
       case "win":
         embed
-          .setColor(buttonStyleColors.get(this.gemStyle.style))
+          .setColor(buttonStyleColors.get(this.gemStyle.style)!)
           .addFields(
             { name: bold("Balance"), value: Currency.format(balance + currentProfit), inline: true },
             { name: bold("Profit"), value: currentProfitString, inline: true },
@@ -176,7 +204,7 @@ class MineGrid {
       case "lose":
       default:
         embed
-          .setColor(buttonStyleColors.get(this.mineStyle.style))
+          .setColor(buttonStyleColors.get(this.mineStyle.style)!)
           .addFields(
             { name: bold("Balance"), value: Currency.format(balance - wager.value), inline: true },
             { name: bold("Profit"), value: Currency.format(-wager.value), inline: true },
@@ -186,7 +214,7 @@ class MineGrid {
         break;
     }
 
-    embed.setFooter({ text: user.username, iconURL: user.avatarURL() });
+    embed.setFooter({ text: user.username, iconURL: user.displayAvatarURL() });
 
     return embed;
   }
@@ -207,7 +235,7 @@ class MineGrid {
     }
   }
 
-  getCell(index) {
+  getCell(index: number) {
     const x = Math.floor(index / this.size);
     const y = index % this.size;
     return this.grid[x][y];
@@ -224,16 +252,16 @@ class MineGrid {
     this.onGameOver();
   }
 
-  nextProfit(wager) {
+  nextProfit(wager: number) {
     return wager * this.nextMultiplier - wager;
   }
 
-  currentProfit(wager) {
+  currentProfit(wager: number) {
     return wager * this.currentMultiplier - wager;
   }
 
-  #initializeGrid() {
-    const grid = new Array(this.size);
+  private initializeGrid(): Cell[][] {
+    const grid: Cell[][] = [];
     for (let i = 0; i < this.size; i++) {
       grid[i] = new Array(this.size);
       for (let j = 0; j < this.size; j++) {
@@ -241,17 +269,19 @@ class MineGrid {
       }
     }
 
-    this.#placeMines(grid);
+    this.placeMines(grid);
 
     return grid;
   }
 
-  #placeMines(grid) {
+  private placeMines(grid: Cell[][]) {
     const numCells = this.sizeSquared;
-    const mineIndices = new Set();
+    const mineIndices = new Set<number>();
+
     while (mineIndices.size < this.numMines) {
       mineIndices.add(Math.floor(Math.random() * numCells));
     }
+
     for (const index of mineIndices) {
       const x = Math.floor(index / this.size);
       const y = index % this.size;
@@ -259,12 +289,15 @@ class MineGrid {
     }
   }
 
-  #getButtonStyles() {
-    this.gemStyle = gemStyles[Math.floor(Math.random() * gemStyles.length)];
-    this.mineStyle = mineStyles[Math.floor(Math.random() * mineStyles.length)];
+  private getGemStyle(): EmojiStylePair {
+    return gemStyles[Math.floor(Math.random() * gemStyles.length)];
   }
 
-  #calculateWinProbability(numCellsRevealed) {
+  private getMineStyle(): EmojiStylePair {
+    return mineStyles[Math.floor(Math.random() * mineStyles.length)];
+  }
+
+  private calculateWinProbability(numCellsRevealed: number) {
     return (
       (factorial[this.sizeSquared - this.numMines] * factorial[this.sizeSquared - numCellsRevealed]) /
       (factorial[this.sizeSquared] * factorial[this.sizeSquared - (this.numMines + numCellsRevealed)])
@@ -273,7 +306,17 @@ class MineGrid {
 }
 
 class Cell {
-  constructor(x, y, grid) {
+  x: number;
+  y: number;
+  grid: MineGrid;
+  isMine: boolean;
+  revealed: boolean;
+  disabled: boolean;
+  gemButton!: ButtonBuilder;
+  mineButton!: ButtonBuilder;
+  unrevealedButton!: ButtonBuilder;
+
+  constructor(x: number, y: number, grid: MineGrid) {
     this.x = x;
     this.y = y;
     this.grid = grid;
@@ -316,27 +359,63 @@ class Cell {
   }
 }
 
-module.exports = async (interaction, client, numMines = null, wager = null, originalWager = null) => {
-  wager ??= interaction.options.getString("wager");
-  numMines ??= interaction.options.getNumber("mines");
+type ButtonSelection = "playAgain" | "originalWager" | "none";
 
-  let balance = interaction.client.economy.getBalance(interaction.user.id);
+type InitialActionRowOptions = {
+  balance: number;
+};
+
+type FinalActionRowOptions = {
+  selected: ButtonSelection;
+};
+
+type CreateActionRowOptions = {
+  user: User;
+  wager: Currency;
+  originalWager: Currency;
+  selected?: ButtonSelection;
+} & (InitialActionRowOptions | FinalActionRowOptions);
+
+type CreateEmbedOptions = {
+  user: User;
+  wager: Currency;
+  balance: number;
+};
+
+export default async function execute(
+  interaction: ChatInputCommandInteraction | MessageComponentInteraction,
+  client: ExtendedClient,
+  numMines?: number,
+  wager?: Currency | string,
+  originalWager?: Currency,
+): Promise<void> {
+  if (interaction.isChatInputCommand()) {
+    wager ??= interaction.options.getString("wager", true);
+    numMines ??= interaction.options.getNumber("mines", true);
+  }
+
+  if (!wager || !numMines) {
+    throw new Error("Missing required parameters");
+  }
+
+  let balance = client.economy.getBalance(interaction.user.id);
   wager = new Currency(wager, balance);
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
-    return interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
+    interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
+    return;
   }
 
   const grid = new MineGrid(gridSize, numMines);
-  const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
+  const embed = grid.createEmbed({ user: interaction.user, wager, balance });
   const gridResponse = await interaction.reply({ embeds: [embed], components: grid.cellActionRows, fetchReply: true });
   const optionResponse = await interaction.followUp({
-    components: grid.constructOptionActionRow(),
+    components: grid.createOptionActionRow(),
     fetchReply: true,
   });
 
-  const filter = i => i.user.id === interaction.user.id;
+  const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
   const time = 3_600_000;
   const gridComponentCollector = gridResponse.createMessageComponentCollector({ filter, time });
   const cashOutCollector = optionResponse.createMessageComponentCollector({ filter, time, max: 1 });
@@ -344,47 +423,51 @@ module.exports = async (interaction, client, numMines = null, wager = null, orig
   async function handleGameOver() {
     gridComponentCollector.stop();
     cashOutCollector.stop();
+    wager = <Currency>wager;
+    originalWager = <Currency>originalWager;
 
     const netGain = grid.gameState === "win" ? grid.currentProfit(wager.value) : -wager.value;
     balance += netGain;
 
-    interaction.client.economy.addBalance(interaction.user.id, netGain);
-    interaction.client.economy.addLog(interaction.user.id, "mines", netGain);
+    client.economy.addBalance(interaction.user.id, netGain);
+    client.economy.addLog(interaction.user.id, "mines", netGain);
 
     const optionInteraction = await optionResponse.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
 
-    let selected = "none";
+    let selected: ButtonSelection = "none";
 
     if (optionInteraction) {
-      selected = optionInteraction.customId;
+      selected = optionInteraction.customId as ButtonSelection;
 
       let newWager = wager;
 
       if (selected === "originalWager") {
-        newWager = new Currency(originalWager.value, balance);
+        newWager = new Currency(originalWager!.value, balance);
         originalWager = newWager;
       }
 
-      module.exports(optionInteraction, client, numMines, newWager, originalWager);
+      execute(optionInteraction, client, numMines, newWager, originalWager);
     }
 
     optionResponse.edit({
-      components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager, selected }),
+      components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager, selected }),
     });
   }
 
-  gridComponentCollector.on("collect", async i => {
-    const cell = grid.getCell(i.customId);
+  gridComponentCollector.on("collect", async (i: MessageComponentInteraction) => {
+    const cell = grid.getCell(Number(i.customId));
     cell.onClick();
     gridComponentCollector.resetTimer();
     cashOutCollector.resetTimer();
+    wager = <Currency>wager;
+    originalWager = <Currency>originalWager;
 
-    const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
+    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
     i.update({ embeds: [embed], components: grid.cellActionRows });
 
     if (grid.gameOver) {
       optionResponse.edit({
-        components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
+        components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
       });
 
       handleGameOver();
@@ -393,25 +476,29 @@ module.exports = async (interaction, client, numMines = null, wager = null, orig
 
   cashOutCollector.on("collect", async i => {
     grid.cashOut();
+    wager = <Currency>wager;
+    originalWager = <Currency>originalWager;
 
-    const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
+    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
     gridResponse.edit({ embeds: [embed], components: grid.cellActionRows });
-    i.update({ components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager }) });
+    i.update({ components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }) });
 
     handleGameOver();
   });
 
   gridComponentCollector.on("end", async (_, reason) => {
     if (reason !== "time") return;
+    wager = <Currency>wager;
+    originalWager = <Currency>originalWager;
 
     grid.cashOut();
 
-    const embed = grid.constructEmbed({ user: interaction.user, wager, balance });
+    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
     gridResponse.edit({ embeds: [embed], components: grid.cellActionRows });
     optionResponse.edit({
-      components: grid.constructOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
+      components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
     });
 
     handleGameOver();
   });
-};
+}

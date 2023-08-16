@@ -1,35 +1,39 @@
-const { Collection } = require("discord.js");
-const { Users, CasinoLogs } = require("../db-objects");
-const { Op } = require("sequelize");
+import { Collection } from "discord.js";
+import { Users, CasinoLogs } from "../db-objects";
+import { Op } from "sequelize";
+import numeral from "numeral";
+import { UserModel } from "models/Users";
+import { CasinoLogModel } from "models/CasinoLogs";
 
-const numeral = require("numeral");
 numeral.defaultFormat("$0,0.00");
 const hoursToMs = 60 * 60 * 1000;
 
-class EconomyManager {
-  users = new Collection();
+export default class EconomyManager {
+  users = new Collection<string, UserModel>();
 
   minHoursUntilDaily = 18;
   maxHoursUntilLate = 36;
   baseReward = 1000;
   flatReward = 10;
   exponent = 1.1;
-  streakReward = (streak, totalClaims) =>
-    (this.baseReward + this.flatReward * totalClaims) * Math.pow(streak, this.exponent);
+
+  streakReward(streak: number, totalClaims: number): number {
+    return (this.baseReward + this.flatReward * totalClaims) * Math.pow(streak, this.exponent);
+  }
 
   constructor() {
     this.init();
   }
 
   async init() {
-    const users = await Users.findAll();
+    const users = await Users.findAll<UserModel>();
 
     for (const user of users) {
       this.users.set(user.user_id, user);
     }
   }
 
-  async addBalance(id, amount) {
+  async addBalance(id: string, amount: number): Promise<UserModel> {
     const user = this.users.get(id);
 
     if (user) {
@@ -44,12 +48,12 @@ class EconomyManager {
     return newUser;
   }
 
-  getBalance(id) {
+  getBalance(id: string): number {
     const user = this.users.get(id);
     return user ? user.balance : 0;
   }
 
-  async setBalance(id, amount) {
+  async setBalance(id: string, amount: number): Promise<UserModel> {
     const user = this.users.get(id);
 
     if (user) {
@@ -64,7 +68,7 @@ class EconomyManager {
     return newUser;
   }
 
-  async incrementDailyStreak(id) {
+  async incrementDailyStreak(id: string): Promise<UserModel> {
     const user = this.users.get(id);
 
     if (user) {
@@ -92,7 +96,7 @@ class EconomyManager {
     return newUser;
   }
 
-  async resetDailyStreak(id) {
+  async resetDailyStreak(id: string): Promise<UserModel> {
     const user = this.users.get(id);
 
     if (user) {
@@ -109,7 +113,7 @@ class EconomyManager {
     return newUser;
   }
 
-  getDailyStatus(id) {
+  getDailyStatus(id: string): DailyStatus {
     const user = this.users.get(id);
     const lastDaily = user?.last_daily ?? 0;
     const streak = user?.daily_streak ?? 0;
@@ -117,51 +121,50 @@ class EconomyManager {
     const balance = user?.balance ?? 0;
 
     if (lastDaily === 0) {
-      return { available: true, late: false, balance, streak, totalDaily };
+      return { status: "available", almostLateBy: -1, balance, streak, totalDaily };
     }
 
     const availableAt = lastDaily + this.minHoursUntilDaily * hoursToMs;
     const lateAt = lastDaily + this.maxHoursUntilLate * hoursToMs;
 
     const isAvailable = Date.now() > availableAt;
-    const isLate = Date.now() > lateAt;
 
     const lateBy = Date.now() - lateAt;
+    const isLate = lateBy > 0;
 
     if (isLate) {
-      return { available: true, late: true, lateBy, balance, streak: 0, totalDaily };
+      return { status: "late", lateBy, balance, streak, totalDaily };
     }
 
     if (isAvailable) {
-      return { available: true, late: false, availableAt, balance, streak, totalDaily };
+      return { status: "available", almostLateBy: Math.abs(lateBy), balance, streak, totalDaily };
     }
 
-    return { available: false, availableAt, balance, streak, totalDaily };
+    return { status: "unavailable", availableAt, balance, streak, totalDaily };
   }
 
-  async rewardStreak(id) {
+  async rewardStreak(id: string): Promise<StreakRewardResponse> {
     const dailyStatus = this.getDailyStatus(id);
-    const { streak, totalDaily, balance } = dailyStatus;
+    const { status, streak, totalDaily, balance } = dailyStatus;
 
-    if (!dailyStatus.available) {
+    if (status === "unavailable") {
       return {
-        success: false,
+        reward: 0,
         ...dailyStatus,
       };
     }
 
-    if (dailyStatus.late) {
+    if (status === "late") {
       await this.resetDailyStreak(id);
 
       const reward = this.streakReward(1, totalDaily);
       this.addBalance(id, reward);
 
       return {
-        success: true,
-        late: true,
+        reward,
+        status,
         lateBy: dailyStatus.lateBy,
         streak: streak + 1,
-        reward,
         balance: balance + reward,
         totalDaily: totalDaily + 1,
       };
@@ -173,16 +176,16 @@ class EconomyManager {
     this.addBalance(id, reward);
 
     return {
-      success: true,
       reward,
+      status,
+      almostLateBy: dailyStatus.almostLateBy,
       streak: streak + 1,
-      lateBy: dailyStatus.lateBy,
       balance: balance + reward,
       totalDaily: totalDaily + 1,
     };
   }
 
-  async transferBalance(id, amount, recipientId) {
+  async transferBalance(id: string, amount: number, recipientId: string): Promise<TransferBalanceResponse> {
     const userPromise = this.addBalance(id, -amount);
     const recipientPromise = this.addBalance(recipientId, amount);
 
@@ -191,27 +194,52 @@ class EconomyManager {
     return { userBalance: user.balance, recipientBalance: recipient.balance };
   }
 
-  addLog(id, game, net_gain) {
+  addLog(id: string, game: string, net_gain: number): Promise<CasinoLogModel> {
     return CasinoLogs.create({ user_id: id, game, net_gain });
   }
 
-  fetchLogs(id, timeRange, game = null) {
+  fetchLogs(id: string, timeRange: number, game?: string) {
     const filter = {
       where: {
         user_id: id,
         timestamp: {
           [Op.gte]: new Date(Date.now() - timeRange),
         },
+        ...(game && { game }),
       },
-      order: [["timestamp", "DESC"]],
+      order: [["timestamp", "DESC"]] as [string, string][],
     };
 
-    if (game) {
-      filter.where.game = game;
-    }
-
-    return CasinoLogs.findAll(filter);
+    return CasinoLogs.findAll<CasinoLogModel>(filter);
   }
 }
 
-module.exports = EconomyManager;
+type AvailableStatus = {
+  status: "available";
+  almostLateBy: number;
+};
+
+type LateStatus = {
+  status: "late";
+  lateBy: number;
+};
+
+type UnavailableStatus = {
+  status: "unavailable";
+  availableAt: number;
+};
+
+type DailyStatus = {
+  balance: number;
+  streak: number;
+  totalDaily: number;
+} & (AvailableStatus | LateStatus | UnavailableStatus);
+
+export type StreakRewardResponse = {
+  reward: number;
+} & DailyStatus;
+
+type TransferBalanceResponse = {
+  userBalance: number;
+  recipientBalance: number;
+};

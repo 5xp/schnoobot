@@ -1,9 +1,18 @@
-const { EmbedBuilder, time, bold } = require("discord.js");
-const Currency = require("../../../libs/Currency");
+import { EmbedBuilder, time, bold, ChatInputCommandInteraction, EmbedField } from "discord.js";
+import Currency from "@common/Currency";
+import ExtendedClient from "@common/ExtendedClient";
+import { StreakRewardResponse } from "@common/EconomyManager";
 const formatter = new Intl.RelativeTimeFormat("en", { style: "short" });
 
-function largestTimeUnit(seconds) {
-  let value, unit;
+type TimeUnit = "month" | "week" | "day" | "hour" | "minute" | "second";
+
+type TimeUnitPair = {
+  value: number;
+  unit: TimeUnit;
+};
+
+function largestTimeUnit(seconds: number): TimeUnitPair {
+  let value: number, unit: TimeUnit;
   if (seconds < 60) {
     value = seconds;
     unit = "second";
@@ -29,7 +38,7 @@ function largestTimeUnit(seconds) {
   return { value: valueRounded, unit };
 }
 
-function getRelativeTime(seconds) {
+function getRelativeTime(seconds: number) {
   const { value, unit } = largestTimeUnit(seconds);
   let formattedString = formatter.format(value, unit);
   formattedString = formattedString.replace(/(ago|in)/, "").trim();
@@ -37,10 +46,10 @@ function getRelativeTime(seconds) {
   return formattedString;
 }
 
-function constructEmbed(response) {
+function constructEmbed(response: StreakRewardResponse): EmbedBuilder {
   const embed = new EmbedBuilder();
 
-  const fields = [
+  const fields: Array<EmbedField> = [
     {
       name: bold("Balance"),
       value: Currency.format(response.balance),
@@ -53,13 +62,13 @@ function constructEmbed(response) {
     },
   ];
 
-  if (!response.success) {
+  if (response.status === "unavailable") {
     embed.setTitle("🚫 Daily Reward").setColor("Red").setDescription("You have already claimed your daily reward!");
     const availableAtSeconds = Math.floor(response.availableAt / 1000);
     const availableAtString = `${time(availableAtSeconds, "R")}\n(${time(availableAtSeconds, "t")})`;
 
     fields.unshift({ name: "Available", value: availableAtString, inline: true });
-  } else if (response.late) {
+  } else if (response.status === "late") {
     const lateBySeconds = Math.floor(response.lateBy / 1000);
     const lateBy = getRelativeTime(lateBySeconds);
 
@@ -75,7 +84,7 @@ function constructEmbed(response) {
     const almostLateBySeconds = Math.abs(Math.floor(response.almostLateBy / 1000));
     const almostLateSecondsThreshold = 60 * 30;
 
-    if (almostLateBySeconds <= almostLateSecondsThreshold) {
+    if (response.almostLateBy > 0 && almostLateBySeconds <= almostLateSecondsThreshold) {
       const almostLateBy = getRelativeTime(almostLateBySeconds);
       embed.setDescription(`You almost missed your daily by ${bold(almostLateBy)}!`);
     }
@@ -88,8 +97,8 @@ function constructEmbed(response) {
   return embed;
 }
 
-module.exports = async interaction => {
-  const response = await interaction.client.economy.rewardStreak(interaction.user.id);
+export default async (interaction: ChatInputCommandInteraction, client: ExtendedClient) => {
+  const response = await client.economy.rewardStreak(interaction.user.id);
   const embed = constructEmbed(response);
 
   return interaction.reply({ embeds: [embed] });

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Client, ClientOptions, Collection } from "discord.js";
 import Command from "./Command";
-import EconomyManager from "../libs/EconomyManager";
+import EconomyManager from "./EconomyManager";
 
 export default class ExtendedClient extends Client {
   commands: Collection<string, Command> = new Collection();

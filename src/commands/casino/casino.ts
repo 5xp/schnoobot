@@ -1,6 +1,7 @@
-const { SlashCommandBuilder } = require("discord.js");
+import ExtendedClient from "@common/ExtendedClient";
+import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName("casino")
     .setDescription("casino commands")
@@ -72,12 +73,14 @@ module.exports = {
           option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
         ),
     ),
-  async execute(interaction, client) {
+  async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const subcommand = interaction.options.getSubcommand();
 
     const commandPath = subcommandGroup ? `./${subcommandGroup}/${subcommand}` : `./${subcommand}`;
+    const commandModule = await import(commandPath);
+    const execute = commandModule.default;
 
-    require(commandPath)(interaction, client);
+    execute(interaction, client);
   },
 };

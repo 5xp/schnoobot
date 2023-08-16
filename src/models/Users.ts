@@ -1,7 +1,16 @@
-import { Sequelize, DataTypes } from "sequelize";
+import { Sequelize, DataTypes, Model } from "sequelize";
+
+export class UserModel extends Model {
+  declare user_id: string;
+  declare balance: number;
+  declare last_daily: number;
+  declare daily_streak: number;
+  declare total_daily: number;
+  declare highest_streak: number;
+}
 
 export default (sequelize: Sequelize) => {
-  return sequelize.define(
+  return sequelize.define<UserModel>(
     "users",
     {
       user_id: {
