@@ -2,18 +2,13 @@ import numeral from "numeral";
 numeral.defaultFormat("$0,0.00");
 
 export default class Currency {
-  input: string | number;
+  input: string;
   allIn: boolean;
   balance = 0;
 
-  constructor(input: Currency | string | number, balance: number | undefined) {
-    if (input instanceof Currency) {
-      this.input = input.input;
-      this.allIn = input.allIn;
-    } else {
-      this.input = input;
-      this.allIn = String(this.input).toLowerCase() === "all";
-    }
+  constructor(input: string | number, balance: number | undefined) {
+    this.input = input.toString();
+    this.allIn = String(this.input).toLowerCase() === "all";
 
     if (balance) this.balance = balance;
   }
@@ -29,7 +24,7 @@ export default class Currency {
   }
 
   get validity(): CurrencyValidity {
-    if (this.value === null) {
+    if (numeral(this.input).value() === null) {
       return { code: "invalid", message: "Invalid amount!" };
     }
 

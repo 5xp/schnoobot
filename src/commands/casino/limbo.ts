@@ -12,24 +12,22 @@ import Currency from "@common/Currency";
 import numeral from "numeral";
 import ExtendedClient from "@common/ExtendedClient";
 
-export default async function execute(
+export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
+  const wagerInput = interaction.options.getString("wager", true);
+  const targetMultiplier = interaction.options.getNumber("target", true);
+
+  run(interaction, client, targetMultiplier, wagerInput);
+}
+
+async function run(
   interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
-  targetMultiplier?: number,
-  wager?: Currency | string,
+  targetMultiplier: number,
+  wagerInput: string,
   originalWager?: Currency,
 ): Promise<void> {
-  if (interaction.isChatInputCommand()) {
-    wager ??= interaction.options.getString("wager", true);
-    targetMultiplier ??= interaction.options.getNumber("target", true);
-  }
-
-  if (!wager || !targetMultiplier) {
-    throw new Error("Mising required parameters");
-  }
-
   let balance = client.economy.getBalance(interaction.user.id);
-  wager = new Currency(wager, balance);
+  const wager = new Currency(wagerInput, balance);
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
@@ -70,7 +68,7 @@ export default async function execute(
       originalWager = newWager;
     }
 
-    execute(componentInteraction, client, targetMultiplier, newWager, originalWager);
+    run(componentInteraction, client, targetMultiplier, newWager.input, originalWager);
   }
 
   interaction.editReply({

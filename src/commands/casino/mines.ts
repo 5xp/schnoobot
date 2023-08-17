@@ -382,24 +382,22 @@ type CreateEmbedOptions = {
   balance: number;
 };
 
-export default async function execute(
+export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
+  const wagerInput = interaction.options.getString("wager", true);
+  const numMines = interaction.options.getNumber("mines", true);
+
+  run(interaction, client, numMines, wagerInput);
+}
+
+async function run(
   interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
-  numMines?: number,
-  wager?: Currency | string,
+  numMines: number,
+  wagerInput: string,
   originalWager?: Currency,
 ): Promise<void> {
-  if (interaction.isChatInputCommand()) {
-    wager ??= interaction.options.getString("wager", true);
-    numMines ??= interaction.options.getNumber("mines", true);
-  }
-
-  if (!wager || !numMines) {
-    throw new Error("Missing required parameters");
-  }
-
   let balance = client.economy.getBalance(interaction.user.id);
-  wager = new Currency(wager, balance);
+  const wager = new Currency(wagerInput, balance);
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
@@ -423,7 +421,6 @@ export default async function execute(
   async function handleGameOver() {
     gridComponentCollector.stop();
     cashOutCollector.stop();
-    wager = <Currency>wager;
     originalWager = <Currency>originalWager;
 
     const netGain = grid.gameState === "win" ? grid.currentProfit(wager.value) : -wager.value;
@@ -446,7 +443,7 @@ export default async function execute(
         originalWager = newWager;
       }
 
-      execute(optionInteraction, client, numMines, newWager, originalWager);
+      run(optionInteraction, client, numMines, newWager.input, originalWager);
     }
 
     optionResponse.edit({
@@ -459,7 +456,6 @@ export default async function execute(
     cell.onClick();
     gridComponentCollector.resetTimer();
     cashOutCollector.resetTimer();
-    wager = <Currency>wager;
     originalWager = <Currency>originalWager;
 
     const embed = grid.createEmbed({ user: interaction.user, wager, balance });
@@ -476,7 +472,6 @@ export default async function execute(
 
   cashOutCollector.on("collect", async i => {
     grid.cashOut();
-    wager = <Currency>wager;
     originalWager = <Currency>originalWager;
 
     const embed = grid.createEmbed({ user: interaction.user, wager, balance });
@@ -488,7 +483,6 @@ export default async function execute(
 
   gridComponentCollector.on("end", async (_, reason) => {
     if (reason !== "time") return;
-    wager = <Currency>wager;
     originalWager = <Currency>originalWager;
 
     grid.cashOut();

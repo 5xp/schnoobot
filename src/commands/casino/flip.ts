@@ -10,32 +10,30 @@ import {
 } from "discord.js";
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
+import { z } from "zod";
 
-export default async function execute(
+export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
+  const wagerInput = interaction.options.getString("wager", true);
+  const choice = FlipChoiceSchema.parse(interaction.options.getString("choice", true));
+
+  run(interaction, client, choice, wagerInput);
+}
+
+async function run(
   interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
-  choice?: string,
-  wager?: Currency | string,
+  choice: FlipChoice,
+  wagerInput: string,
   originalWager?: Currency,
 ): Promise<void> {
-  if (interaction.isChatInputCommand()) {
-    wager ??= interaction.options.getString("wager", true);
-    choice ??= interaction.options.getString("choice", true);
-  }
-
-  if (!wager || !choice) {
-    throw new Error("Missing required parameters");
-  }
-
   let balance = client.economy.getBalance(interaction.user.id);
-  wager = new Currency(wager, balance);
+  const wager = new Currency(wagerInput, balance);
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
     interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
     return;
   }
-
   const result = flipCoin();
   const win = result === choice;
   const netGain = win ? wager.value : -wager.value;
@@ -67,13 +65,17 @@ export default async function execute(
       originalWager = newWager;
     }
 
-    execute(componentInteraction, client, choice, newWager, originalWager);
+    run(componentInteraction, client, choice, newWager.input, originalWager);
   }
 
   interaction.editReply({
     components: createActionRow({ selected, wager, originalWager }),
   });
 }
+
+const FlipChoiceSchema = z.enum(["heads", "tails"]);
+
+type FlipChoice = z.infer<typeof FlipChoiceSchema>;
 
 type ButtonSelection = "playAgain" | "double" | "originalWager" | "none";
 
@@ -150,8 +152,8 @@ function createActionRow(options: CreateActionRowOptions): ActionRowBuilder<Butt
 
 type CreateEmbedOptions = {
   user: User;
-  choice: string;
-  result: string;
+  choice: FlipChoice;
+  result: FlipChoice;
   netGain: number;
   balance: number;
 };
