@@ -1,25 +1,16 @@
-import { config } from "dotenv";
-import { resolve } from "path";
 import ExtendedClient from "./common/ExtendedClient";
 import Command from "./common/Command";
 import { REST, Routes, Collection, RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js";
-
-config({ path: resolve(process.cwd(), ".env") });
+import { ENV } from "env";
+import { resolve } from "path";
 
 const args = process.argv.slice(2);
 const deployGlobal = args.includes("--global");
 
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  throw new Error("Token not found in environment variables.");
-}
+const token = ENV.DISCORD_TOKEN;
+const clientId = ENV.CLIENT_ID;
+const guildId = ENV.GUILD_ID;
 
-const clientId = process.env.CLIENT_ID;
-if (!clientId) {
-  throw new Error("Client ID not found in environment variables.");
-}
-
-const guildId = process.env.GUILD_ID;
 if (!guildId && !deployGlobal) {
   throw new Error("Guild ID not found in environment variables.");
 }
