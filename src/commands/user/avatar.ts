@@ -33,8 +33,9 @@ export async function run(
 ): Promise<void> {
   const hasGuildAvatar = isGuildMember(user) && !!user.avatar;
   const avatarIsIdentical = isGuildMember(user) && user.avatar === user.user.avatar;
+  const showSwitchButton = hasGuildAvatar && !avatarIsIdentical;
 
-  showGuildAvatar &&= hasGuildAvatar && !avatarIsIdentical;
+  showGuildAvatar &&= showSwitchButton;
 
   const globalAvatarURL = isGuildMember(user)
     ? user.user.displayAvatarURL({ size: 4096 })
@@ -58,7 +59,7 @@ export async function run(
 
   const options = {
     embeds: [embed],
-    components: hasGuildAvatar ? [actionRow] : undefined,
+    components: showSwitchButton ? [actionRow] : undefined,
   };
 
   const response = interaction.isMessageComponent()
