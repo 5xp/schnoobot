@@ -1,4 +1,5 @@
-const {
+import ExtendedClient from "@common/ExtendedClient";
+import {
   SlashCommandBuilder,
   ActionRowBuilder,
   ModalBuilder,
@@ -7,9 +8,12 @@ const {
   EmbedBuilder,
   codeBlock,
   AttachmentBuilder,
-} = require("discord.js");
+  ChatInputCommandInteraction,
+  ModalSubmitInteraction,
+  bold,
+} from "discord.js";
 
-function clean(text) {
+function clean(text: string): string {
   if (typeof text === "string") {
     return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
   } else {
@@ -17,11 +21,11 @@ function clean(text) {
   }
 }
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder().setName("run-code").setDescription("Run code"),
   devOnly: true,
-  async execute(interaction) {
-    if (interaction.user.id !== interaction.client.application.owner.id) {
+  async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
+    if (interaction.user.id !== client.application?.owner?.id) {
       await interaction.reply({
         content: "Only the bot owner can use this command.",
         ephemeral: true,
@@ -38,15 +42,20 @@ module.exports = {
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
-    const actionRow = new ActionRowBuilder().addComponents(codeInput);
+    const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(codeInput);
 
     modal.addComponents(actionRow);
 
     await interaction.showModal(modal);
 
-    const filter = i => i.customId === "run-code";
+    const filter = (i: ModalSubmitInteraction) => i.customId === "run-code";
 
-    const submission = await interaction.awaitModalSubmit({ filter, time: 60_000 }).catch(() => null);
+    const submission = await interaction.awaitModalSubmit({ filter, time: 120_000 }).catch(() => null);
+
+    if (!submission) {
+      await interaction.reply({ content: bold("Interaction timed out."), ephemeral: true });
+      return;
+    }
 
     const code = submission.fields.getTextInputValue("code");
     const codeFormatted = codeBlock("js", code);
