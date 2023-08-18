@@ -14,10 +14,10 @@ import {
   MessageComponentInteraction,
   MessageContextMenuCommandInteraction,
   hyperlink,
+  hideLinkEmbed,
 } from "discord.js";
 import youtubeDl, { YtFlags, YtResponse } from "youtube-dl-exec";
 import ExtendedClient from "@common/ExtendedClient";
-import { z } from "zod";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
@@ -79,7 +79,7 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
   try {
     reply = await createReply({ interaction, filePath, extension, jsonDump, ephemeral });
   } catch (error) {
-    handleUploadError(interaction, error, ephemeral);
+    handleUploadError(interaction, url, error, ephemeral);
     return;
   } finally {
     unlink(`${filePath}.${extension}`, () => null);
@@ -116,16 +116,14 @@ async function tryDownload(url: string, options: YtFlags) {
 
   const [outputResult, jsonDumpResult] = results;
 
-  const output = outputResult.status === "fulfilled" ? (outputResult.value as unknown as string) : null;
-  const jsonDump = jsonDumpResult.status === "fulfilled" ? (jsonDumpResult.value as unknown as YtResponse) : null;
+  if (outputResult.status === "rejected" || jsonDumpResult.status === "rejected") {
+    const reason = outputResult.status === "rejected" ? outputResult.reason : null;
 
-  if (!jsonDump || !output) {
-    const ytError: DownloadError = {
-      stderr: "An unknown error occured.",
-    };
-
-    throw ytError;
+    throw reason;
   }
+
+  const output = outputResult.value as unknown as string;
+  const jsonDump = jsonDumpResult.value;
 
   if (output.includes("Aborting.")) {
     let errorString = "The requested media is too large.";
@@ -134,14 +132,10 @@ async function tryDownload(url: string, options: YtFlags) {
 
     if (sizeString) {
       const size = Number(sizeString[0]) / 1_000_000;
-      errorString += ` (${size.toFixed(2)}MB).`;
+      errorString += ` (${size.toFixed(2)}MB)`;
     }
 
-    const ytError: DownloadError = {
-      stderr: errorString,
-    };
-
-    throw ytError;
+    throw new Error(errorString);
   }
 
   const extension = jsonDump.ext;
@@ -150,18 +144,16 @@ async function tryDownload(url: string, options: YtFlags) {
 }
 
 async function handleDownloadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
-  console.error(error);
+  console.error(url, error);
 
   if (!ephemeral) {
     await interaction.deleteReply();
   }
 
-  let errorString = hyperlink("An error occured while downloading media", url);
+  let errorString = hyperlink("An error occured while downloading media", hideLinkEmbed(url));
 
-  const result = downloadErrorSchema.safeParse(error);
-
-  if (result.success) {
-    errorString += `: ${codeBlock(result.data.stderr)}`;
+  if (error instanceof Error) {
+    errorString += `: ${codeBlock(error.message)}`;
   } else {
     errorString += ".";
   }
@@ -172,14 +164,14 @@ async function handleDownloadError(interaction: ValidInteraction, url: string, e
   });
 }
 
-async function handleUploadError(interaction: ValidInteraction, error: unknown, ephemeral: boolean) {
-  console.error(error);
+async function handleUploadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
+  console.error(url, error);
 
   if (!ephemeral) {
     await interaction.deleteReply();
   }
 
-  let errorString = "An error occured while uploading media";
+  let errorString = hyperlink("An error occured while uploading media", hideLinkEmbed(url));
 
   if (error instanceof Error) {
     errorString += `: ${codeBlock(error.message)}`;
@@ -264,12 +256,6 @@ async function createReply({
 
   return reply;
 }
-
-const downloadErrorSchema = z.object({
-  stderr: z.string(),
-});
-
-type DownloadError = z.infer<typeof downloadErrorSchema>;
 
 type ValidInteraction = ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
 
