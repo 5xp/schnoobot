@@ -24,7 +24,7 @@ export default class Currency {
   }
 
   get validity(): CurrencyValidity {
-    if (numeral(this.input).value() === null) {
+    if (numeral(this.input).value() === null && !this.allIn) {
       return { code: "invalid", message: "Invalid amount!" };
     }
 
