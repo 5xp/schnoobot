@@ -15,6 +15,7 @@ import {
   MessageContextMenuCommandInteraction,
   hyperlink,
   hideLinkEmbed,
+  InteractionResponse,
 } from "discord.js";
 import youtubeDl, { YtFlags, YtResponse } from "youtube-dl-exec";
 import ExtendedClient from "@common/ExtendedClient";
@@ -48,8 +49,10 @@ export default {
 export async function run({ interaction, url, ephemeral }: DlRunOptions): Promise<void> {
   const isContextMenuCommand = interaction.isContextMenuCommand();
 
+  let deferPromise: Promise<InteractionResponse> | null = null;
+
   if (!interaction.deferred && !interaction.replied) {
-    interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
+    deferPromise = interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
   }
 
   const fileName = `${interaction.user.id}-${Date.now()}`;
@@ -77,6 +80,7 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
   let reply: Message;
 
   try {
+    await deferPromise;
     reply = await createReply({ interaction, filePath, extension, jsonDump, ephemeral });
   } catch (error) {
     handleUploadError(interaction, url, error, ephemeral);
