@@ -52,7 +52,7 @@ export async function run(
 
   const switchButton = new ButtonBuilder()
     .setCustomId("switch")
-    .setLabel(!showGuildAvatar ? "Show guild avatar" : "Show global avatar")
+    .setLabel(showGuildAvatar ? "Show guild avatar" : "Show global avatar")
     .setStyle(ButtonStyle.Primary);
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(switchButton);
