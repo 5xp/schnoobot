@@ -11,6 +11,7 @@ import {
 import Currency from "@common/Currency";
 import numeral from "numeral";
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const wagerInput = interaction.options.getString("wager", true);
@@ -31,7 +32,7 @@ async function run(
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
-    interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
+    interaction.reply(errorMessage(wager.validity.message));
     return;
   }
 

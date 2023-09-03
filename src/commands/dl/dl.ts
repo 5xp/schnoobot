@@ -19,6 +19,7 @@ import {
 } from "discord.js";
 import youtubeDl, { YtFlags, YtResponse } from "youtube-dl-exec";
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
@@ -38,7 +39,7 @@ export default {
     const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;
 
     if (!url.match(urlRegex)) {
-      interaction.reply({ content: bold("Invalid URL."), ephemeral: true });
+      interaction.reply(errorMessage("Invalid URL."));
       return;
     }
 
@@ -162,10 +163,7 @@ async function handleDownloadError(interaction: ValidInteraction, url: string, e
     errorString += ".";
   }
 
-  await interaction.followUp({
-    content: bold(errorString),
-    ephemeral: true,
-  });
+  await interaction.followUp(errorMessage(errorString));
 }
 
 async function handleUploadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
@@ -183,10 +181,7 @@ async function handleUploadError(interaction: ValidInteraction, url: string, err
     errorString += ".";
   }
 
-  await interaction.followUp({
-    content: bold(errorString),
-    ephemeral: true,
-  });
+  await interaction.followUp(errorMessage(errorString));
 }
 
 function getLabel(jsonDump: YtResponse) {

@@ -7,6 +7,7 @@ import {
   Colors,
   bold,
 } from "discord.js";
+import { errorMessage } from "@common/reply-utils";
 import { z } from "zod";
 
 export default {
@@ -47,28 +48,19 @@ export default {
     .setDMPermission(false),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.inCachedGuild()) {
-      interaction.reply({
-        content: bold("This command can only be used in a server."),
-        ephemeral: true,
-      });
+      interaction.reply(errorMessage("This command can only be used in a server."));
       return;
     }
 
     if (!interaction.appPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) {
-      interaction.reply({
-        content: bold(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`),
-        ephemeral: true,
-      });
+      interaction.reply(errorMessage(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`));
       return;
     }
 
     const name = interaction.options.getString("name", true);
 
     if (name.includes(" ")) {
-      await interaction.reply({
-        content: bold("The name of the emoji cannot contain spaces."),
-        ephemeral: true,
-      });
+      await interaction.reply(errorMessage("The name of the emoji cannot contain spaces."));
 
       return;
     }
@@ -83,10 +75,7 @@ export default {
         url = attachment.url;
 
         if (!url.endsWith(".png") && !url.endsWith(".jpg") && !url.endsWith(".jpeg") && !url.endsWith(".gif")) {
-          await interaction.reply({
-            content: bold("The attachment must be an image."),
-            ephemeral: true,
-          });
+          await interaction.reply(errorMessage("The attachment must be an image."));
 
           return;
         }
@@ -114,11 +103,11 @@ export default {
       console.error(error);
 
       const errorResult = errorSchema.safeParse(error);
-      const errorMessage = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
+      const errorString = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
 
-      await interaction.editReply({
-        content: bold(`There was an error trying to create the emoji: ${inlineCode(errorMessage)}`),
-      });
+      await interaction.editReply(
+        errorMessage(`There was an error trying to create the emoji: ${inlineCode(errorString)}`),
+      );
     }
   },
 };

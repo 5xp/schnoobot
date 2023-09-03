@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { run } from "./dl";
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage, simpleEmbed } from "@common/reply-utils";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 
@@ -28,7 +29,7 @@ async function selectUrl(interaction: MessageContextMenuCommandInteraction, urls
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(urlSelect);
 
   const reply = await interaction.reply({
-    content: bold("Select a URL to download."),
+    embeds: [simpleEmbed("Select a URL to download.")],
     components: [row],
     ephemeral: true,
   });
@@ -44,7 +45,7 @@ async function selectUrl(interaction: MessageContextMenuCommandInteraction, urls
 
   const selectedUrl = i.values[0];
 
-  i.update({ content: bold(`🚀 [Downloading...](<${selectedUrl}>)`), components: [] });
+  i.update({ content: bold(`🚀 [Downloading...](<${selectedUrl}>)`), components: [], embeds: [] });
   return selectedUrl;
 }
 
@@ -60,7 +61,7 @@ export default {
     let urls = message.content.match(urlRegex);
 
     if (!urls) {
-      interaction.reply({ content: bold("No URLs found in message!"), ephemeral: true });
+      interaction.reply(errorMessage("No URLs found in message!"));
       return;
     }
 

@@ -12,6 +12,7 @@ import {
 import Currency from "@common/Currency";
 import numeral from "numeral";
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 
 const gridSize = 5;
 const factorial = [
@@ -401,7 +402,7 @@ async function run(
   originalWager ??= wager;
 
   if (wager.validity.code !== "valid") {
-    interaction.reply({ content: bold(wager.validity.message), ephemeral: true });
+    interaction.reply(errorMessage(wager.validity.message));
     return;
   }
 

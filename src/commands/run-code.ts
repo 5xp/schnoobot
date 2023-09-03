@@ -1,4 +1,5 @@
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 import {
   SlashCommandBuilder,
   ActionRowBuilder,
@@ -26,10 +27,7 @@ export default {
   devOnly: true,
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     if (interaction.user.id !== client.application?.owner?.id) {
-      await interaction.reply({
-        content: "Only the bot owner can use this command.",
-        ephemeral: true,
-      });
+      await interaction.reply(errorMessage("Only the bot owner can use this command."));
 
       return;
     }

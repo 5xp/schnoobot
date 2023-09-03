@@ -1,5 +1,6 @@
 import { BaseInteraction, Events } from "discord.js";
 import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 
 export default {
   name: Events.InteractionCreate,
@@ -13,7 +14,7 @@ export default {
 
     if (!command) {
       console.error(`Command ${interaction.commandName} not found.`);
-      interaction.reply({ content: "Command not found.", ephemeral: true });
+      interaction.reply(errorMessage("Command not found."));
       return;
     }
 
@@ -22,7 +23,7 @@ export default {
     } catch (error) {
       console.error(error);
       const func = interaction.deferred || interaction.replied ? interaction.followUp : interaction.reply;
-      func.call(interaction, { content: "There was an error while executing this command!", ephemeral: true });
+      func.call(interaction, errorMessage("There was an error while executing this command!"));
     }
   },
 };
