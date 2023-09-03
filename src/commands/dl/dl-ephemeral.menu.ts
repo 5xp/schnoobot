@@ -1,6 +1,6 @@
-import { ContextMenuCommandBuilder, ApplicationCommandType, MessageContextMenuCommandInteraction } from "discord.js";
-import dl from "./dl.menu";
 import ExtendedClient from "@common/ExtendedClient";
+import { ApplicationCommandType, ContextMenuCommandBuilder, MessageContextMenuCommandInteraction } from "discord.js";
+import dl from "./dl.menu";
 
 export default {
   data: new ContextMenuCommandBuilder().setName("Download Videos (Ephemeral)").setType(ApplicationCommandType.Message),

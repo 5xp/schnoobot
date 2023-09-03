@@ -1,13 +1,12 @@
+import { errorMessage } from "@common/reply-utils";
 import {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
-  EmbedBuilder,
-  inlineCode,
   ChatInputCommandInteraction,
   Colors,
-  bold,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  inlineCode,
 } from "discord.js";
-import { errorMessage } from "@common/reply-utils";
 import { z } from "zod";
 
 export default {

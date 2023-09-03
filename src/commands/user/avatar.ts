@@ -1,17 +1,17 @@
+import ExtendedClient from "@common/ExtendedClient";
 import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  EmbedBuilder,
-  MessageComponentInteraction,
-  User,
-  GuildMember,
-  Colors,
+  ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ActionRowBuilder,
+  ChatInputCommandInteraction,
+  Colors,
+  EmbedBuilder,
+  GuildMember,
+  MessageComponentInteraction,
+  SlashCommandBuilder,
+  User,
   UserContextMenuCommandInteraction,
 } from "discord.js";
-import ExtendedClient from "@common/ExtendedClient";
 
 export default {
   data: new SlashCommandBuilder()

@@ -1,6 +1,6 @@
-import { BaseInteraction, Events } from "discord.js";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
+import { BaseInteraction, Events } from "discord.js";
 
 export default {
   name: Events.InteractionCreate,

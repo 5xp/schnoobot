@@ -1,9 +1,9 @@
 import { Collection } from "discord.js";
-import { Users, CasinoLogs } from "../db-objects";
-import { Op } from "sequelize";
-import numeral from "numeral";
-import { UserModel } from "models/Users";
 import { CasinoLogModel } from "models/CasinoLogs";
+import { UserModel } from "models/Users";
+import numeral from "numeral";
+import { Op } from "sequelize";
+import { CasinoLogs, Users } from "../db-objects";
 
 numeral.defaultFormat("$0,0.00");
 const hoursToMs = 60 * 60 * 1000;

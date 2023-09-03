@@ -1,7 +1,7 @@
-import { EmbedBuilder, time, bold, ChatInputCommandInteraction, EmbedField } from "discord.js";
 import Currency from "@common/Currency";
-import ExtendedClient from "@common/ExtendedClient";
 import { StreakRewardResponse } from "@common/EconomyManager";
+import ExtendedClient from "@common/ExtendedClient";
+import { ChatInputCommandInteraction, EmbedBuilder, EmbedField, bold, time } from "discord.js";
 const formatter = new Intl.RelativeTimeFormat("en", { style: "short" });
 
 type TimeUnit = "month" | "week" | "day" | "hour" | "minute" | "second";

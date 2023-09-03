@@ -1,7 +1,7 @@
-import { ChatInputCommandInteraction, EmbedBuilder, bold } from "discord.js";
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
+import { ChatInputCommandInteraction, EmbedBuilder, bold } from "discord.js";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const amountString = interaction.options.getString("amount", true);

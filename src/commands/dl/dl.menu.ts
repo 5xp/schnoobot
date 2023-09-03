@@ -1,15 +1,15 @@
-import {
-  ContextMenuCommandBuilder,
-  ApplicationCommandType,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  bold,
-  MessageContextMenuCommandInteraction,
-  MessageComponentInteraction,
-} from "discord.js";
-import { run } from "./dl";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage, simpleEmbed } from "@common/reply-utils";
+import {
+  ActionRowBuilder,
+  ApplicationCommandType,
+  ContextMenuCommandBuilder,
+  MessageComponentInteraction,
+  MessageContextMenuCommandInteraction,
+  StringSelectMenuBuilder,
+  bold,
+} from "discord.js";
+import { run } from "./dl";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 

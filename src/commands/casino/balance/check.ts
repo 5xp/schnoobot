@@ -1,6 +1,6 @@
-import { ChatInputCommandInteraction, EmbedBuilder, bold } from "discord.js";
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
+import { ChatInputCommandInteraction, EmbedBuilder, bold } from "discord.js";
 
 export default async (interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> => {
   const user = interaction.options.getUser("user") ?? interaction.user;

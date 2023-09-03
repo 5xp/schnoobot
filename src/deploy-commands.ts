@@ -1,8 +1,8 @@
-import ExtendedClient from "./common/ExtendedClient";
-import Command from "./common/Command";
-import { REST, Routes, Collection, RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js";
+import { Collection, REST, RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from "discord.js";
 import { ENV } from "env";
 import { resolve } from "path";
+import Command from "./common/Command";
+import ExtendedClient from "./common/ExtendedClient";
 
 const args = process.argv.slice(2);
 const deployGlobal = args.includes("--global");

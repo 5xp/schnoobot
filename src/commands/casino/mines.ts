@@ -1,18 +1,18 @@
+import Currency from "@common/Currency";
+import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 import {
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  bold,
-  User,
-  ColorResolvable,
   ChatInputCommandInteraction,
+  ColorResolvable,
+  EmbedBuilder,
   MessageComponentInteraction,
+  User,
+  bold,
 } from "discord.js";
-import Currency from "@common/Currency";
 import numeral from "numeral";
-import ExtendedClient from "@common/ExtendedClient";
-import { errorMessage } from "@common/reply-utils";
 
 const gridSize = 5;
 const factorial = [

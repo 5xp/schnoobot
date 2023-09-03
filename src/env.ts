@@ -1,6 +1,6 @@
-import { z } from "zod";
 import { config } from "dotenv";
 import { resolve } from "path";
+import { z } from "zod";
 
 config({ path: resolve(process.cwd(), ".env") });
 

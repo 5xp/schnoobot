@@ -1,17 +1,17 @@
+import Currency from "@common/Currency";
+import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
   ChatInputCommandInteraction,
-  bold,
-  User,
+  EmbedBuilder,
   MessageComponentInteraction,
+  User,
+  bold,
 } from "discord.js";
-import Currency from "@common/Currency";
-import ExtendedClient from "@common/ExtendedClient";
 import { z } from "zod";
-import { errorMessage } from "@common/reply-utils";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const wagerInput = interaction.options.getString("wager", true);

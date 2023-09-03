@@ -1,17 +1,17 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
-  SlashCommandBuilder,
   ActionRowBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  EmbedBuilder,
-  codeBlock,
   AttachmentBuilder,
   ChatInputCommandInteraction,
+  EmbedBuilder,
+  ModalBuilder,
   ModalSubmitInteraction,
+  SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   bold,
+  codeBlock,
 } from "discord.js";
 
 function clean(text: string): string {

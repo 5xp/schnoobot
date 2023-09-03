@@ -1,25 +1,25 @@
-import { unlink } from "fs";
+import ExtendedClient from "@common/ExtendedClient";
+import { errorMessage } from "@common/reply-utils";
 import {
-  SlashCommandBuilder,
-  GuildPremiumTier,
-  AttachmentBuilder,
-  codeBlock,
-  bold,
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
   Guild,
+  GuildPremiumTier,
+  InteractionResponse,
   Message,
   MessageComponentInteraction,
   MessageContextMenuCommandInteraction,
-  hyperlink,
+  SlashCommandBuilder,
+  bold,
+  codeBlock,
   hideLinkEmbed,
-  InteractionResponse,
+  hyperlink,
 } from "discord.js";
+import { unlink } from "fs";
 import youtubeDl, { YtFlags, YtResponse } from "youtube-dl-exec";
-import ExtendedClient from "@common/ExtendedClient";
-import { errorMessage } from "@common/reply-utils";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);

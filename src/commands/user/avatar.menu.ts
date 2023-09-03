@@ -1,6 +1,6 @@
-import { ContextMenuCommandBuilder, ApplicationCommandType, UserContextMenuCommandInteraction } from "discord.js";
-import { run } from "./avatar";
 import ExtendedClient from "@common/ExtendedClient";
+import { ApplicationCommandType, ContextMenuCommandBuilder, UserContextMenuCommandInteraction } from "discord.js";
+import { run } from "./avatar";
 
 export default {
   data: new ContextMenuCommandBuilder().setName("View user's avatar").setType(ApplicationCommandType.User),

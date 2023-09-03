@@ -1,6 +1,6 @@
+import { Client, ClientOptions, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
-import { Client, ClientOptions, Collection } from "discord.js";
 import Command from "./Command";
 import EconomyManager from "./EconomyManager";
 

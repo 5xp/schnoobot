@@ -1,6 +1,6 @@
 import { Sequelize } from "sequelize";
-import UsersModel from "./models/Users";
 import CasinoLogsModel from "./models/CasinoLogs";
+import UsersModel from "./models/Users";
 
 const sequelize = new Sequelize("database", "username", "password", {
   host: "localhost",
@@ -15,4 +15,4 @@ const CasinoLogs = CasinoLogsModel(sequelize);
 Users.hasMany(CasinoLogs, { foreignKey: "user_id", as: "casino_logs" });
 CasinoLogs.belongsTo(Users, { foreignKey: "user_id", targetKey: "user_id", as: "user" });
 
-export { Users, CasinoLogs };
+export { CasinoLogs, Users };
