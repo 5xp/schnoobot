@@ -1,29 +1,15 @@
-import { REST, Routes } from "discord.js";
+import ExtendedClient from "@common/ExtendedClient";
 import { ENV } from "env";
 
 const args = process.argv.slice(2);
-const clearGlobal = args.includes("--global");
+const global = args.includes("--global");
 
-const token = ENV.DISCORD_TOKEN;
-const clientId = ENV.CLIENT_ID;
 const guildId = ENV.GUILD_ID;
 
-if (!guildId && !clearGlobal) {
+if (!global && !guildId) {
   throw new Error("Guild ID not found in environment variables.");
 }
 
-const rest = new REST({ version: "10" }).setToken(token);
+const options = global ? { global } : { global, guildId: guildId! };
 
-(async () => {
-  try {
-    if (clearGlobal) {
-      await rest.put(Routes.applicationCommands(clientId), { body: [] });
-      console.log("Successfully cleared global commands.");
-    } else {
-      await rest.put(Routes.applicationGuildCommands(clientId, guildId!), { body: [] });
-      console.log("Successfully cleared guild commands.");
-    }
-  } catch (error) {
-    console.error(error);
-  }
-})();
+ExtendedClient.clearCommands(options).then(console.log).catch(console.error);

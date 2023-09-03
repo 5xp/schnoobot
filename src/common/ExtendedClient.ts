@@ -1,4 +1,12 @@
-import { Client, ClientOptions, Collection } from "discord.js";
+import {
+  Client,
+  ClientOptions,
+  Collection,
+  REST,
+  RESTPostAPIChatInputApplicationCommandsJSONBody,
+  Routes,
+} from "discord.js";
+import { ENV } from "env";
 import fs from "fs";
 import path from "path";
 import Command from "./Command";
@@ -43,6 +51,41 @@ export default class ExtendedClient extends Client {
     return commands;
   }
 
+  static async deployCommands(options: CommandDeployOptions): Promise<string> {
+    const rest = new REST({ version: "10" }).setToken(ENV.DISCORD_TOKEN);
+    const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
+    const commandsCollection = await this.loadCommands(path.join(__dirname, "..", "commands"));
+
+    commandsCollection.forEach(command => {
+      if (command.devOnly && options.global) return;
+      commands.push(command.data.toJSON());
+    });
+
+    console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+    let data: any;
+
+    if (options.global) {
+      data = await rest.put(Routes.applicationCommands(ENV.CLIENT_ID), { body: commands });
+      return "Successfully deployed global commands.";
+    } else {
+      data = await rest.put(Routes.applicationGuildCommands(ENV.CLIENT_ID, options.guildId), { body: commands });
+      return `Successfully deployed guild commands to ${options.guildId}.`;
+    }
+  }
+
+  static async clearCommands(options: CommandDeployOptions): Promise<string> {
+    const rest = new REST({ version: "10" }).setToken(ENV.DISCORD_TOKEN);
+
+    if (options.global) {
+      await rest.put(Routes.applicationCommands(ENV.CLIENT_ID), { body: [] });
+      return "Successfully cleared global commands.";
+    } else {
+      await rest.put(Routes.applicationGuildCommands(ENV.CLIENT_ID, options.guildId), { body: [] });
+      return `Successfully cleared guild commands from ${options.guildId}.`;
+    }
+  }
+
   private async loadEvents(dir: string): Promise<void> {
     const files = fs.readdirSync(dir);
 
@@ -60,3 +103,12 @@ export default class ExtendedClient extends Client {
     }
   }
 }
+
+type CommandDeployOptions =
+  | {
+      global: false;
+      guildId: string;
+    }
+  | {
+      global: true;
+    };
