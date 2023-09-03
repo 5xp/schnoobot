@@ -5,6 +5,7 @@
   "main": "./dist/bot.js",
   "exports": "./dist/bot.js",
   "scripts": {
+    "prebuild": "rimraf dist",
     "build": "tsc",
     "dev": "ts-node --transpile-only -r tsconfig-paths/register src/bot.ts",
     "start": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register .",
@@ -31,6 +32,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^8.30.0",
     "prettier": "^2.8.1",
+    "rimraf": "^5.0.1",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.6"
