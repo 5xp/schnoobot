@@ -40,7 +40,7 @@ export default class ExtendedClient extends Client {
         const commandModule = await import(filePath);
         const command: Command = commandModule.default;
 
-        if (!command.data || !command.execute) continue;
+        if (!command || !command.data || !command.execute) continue;
 
         command.filePath = filePath;
 
