@@ -52,7 +52,7 @@ export async function run(
 
   const switchButton = new ButtonBuilder()
     .setCustomId("switch")
-    .setLabel(showGuildAvatar ? "Show guild avatar" : "Show global avatar")
+    .setLabel(showGuildAvatar ? "Show global avatar" : "Show guild avatar")
     .setStyle(ButtonStyle.Primary);
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(switchButton);
@@ -80,7 +80,7 @@ export async function run(
 }
 
 function isGuildMember(user: User | GuildMember): user is GuildMember {
-  return "displayName" in user;
+  return "guild" in user;
 }
 
 type ValidInteraction = ChatInputCommandInteraction | UserContextMenuCommandInteraction | MessageComponentInteraction;
