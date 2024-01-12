@@ -19,7 +19,7 @@ import {
   hyperlink,
 } from "discord.js";
 import { unlink } from "fs";
-import youtubeDl, { YtFlags, YtResponse } from "youtube-dl-exec";
+import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
@@ -62,14 +62,14 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
   const uploadLimit = getUploadLimit(interaction.guild);
 
   const format = "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/b";
-  const options: YtFlags = {
+  const options: Flags = {
     format: format,
     formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
     maxFilesize: `${uploadLimit}M`,
     output: `${filePath}.%(ext)s`,
-  } as YtFlags;
+  } as Flags;
 
-  let jsonDump: YtResponse, extension: string;
+  let jsonDump: Payload, extension: string;
 
   try {
     ({ jsonDump, extension } = await tryDownload(url, options));
@@ -108,7 +108,7 @@ function getUploadLimit(guild: Guild | null): number {
   }
 }
 
-async function tryDownload(url: string, options: YtFlags) {
+async function tryDownload(url: string, options: Flags) {
   const promises = [
     youtubeDl(url, options),
     youtubeDl(url, {
@@ -127,10 +127,11 @@ async function tryDownload(url: string, options: YtFlags) {
     throw reason;
   }
 
+  // This is incorrectly typed as Payload, but it's actually a string in most cases
   const output = outputResult.value as unknown as string;
   const jsonDump = jsonDumpResult.value;
 
-  if (output.includes("Aborting.")) {
+  if (typeof output === "string" && output.includes("Aborting.")) {
     let errorString = "The requested media is too large.";
 
     const sizeString = output.match(/\d+(?= bytes >)/);
@@ -141,6 +142,9 @@ async function tryDownload(url: string, options: YtFlags) {
     }
 
     throw new Error(errorString);
+  } else if (typeof output !== "string") {
+    console.error("Expected output to be a string:");
+    console.error(output);
   }
 
   const extension = jsonDump.ext;
@@ -184,7 +188,7 @@ async function handleUploadError(interaction: ValidInteraction, url: string, err
   await interaction.followUp(errorMessage(errorString));
 }
 
-function getLabel(jsonDump: YtResponse) {
+function getLabel(jsonDump: Payload) {
   let linkLabel = jsonDump.extractor;
 
   if (["generic", "html5"].includes(linkLabel) && "webpage_url_domain" in jsonDump) {
@@ -268,6 +272,6 @@ type DlReplyOptions = {
   interaction: ValidInteraction;
   filePath: string;
   extension: string;
-  jsonDump: YtResponse;
+  jsonDump: Payload;
   ephemeral: boolean;
 };
