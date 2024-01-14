@@ -20,6 +20,7 @@ import {
 } from "discord.js";
 import { unlink } from "fs";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
+import { getEmbed } from "./site-embeds";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
@@ -122,7 +123,7 @@ async function tryDownload(url: string, options: Flags) {
   const [outputResult, jsonDumpResult] = results;
 
   if (outputResult.status === "rejected" || jsonDumpResult.status === "rejected") {
-    const reason = outputResult.status === "rejected" ? outputResult.reason : null;
+    const reason = jsonDumpResult.status === "rejected" ? jsonDumpResult.reason : null;
 
     throw reason;
   }
@@ -188,22 +189,6 @@ async function handleUploadError(interaction: ValidInteraction, url: string, err
   await interaction.followUp(errorMessage(errorString));
 }
 
-function getLabel(jsonDump: Payload) {
-  let linkLabel = jsonDump.extractor;
-
-  if (["generic", "html5"].includes(linkLabel) && "webpage_url_domain" in jsonDump) {
-    linkLabel = jsonDump.webpage_url_domain as string;
-  }
-
-  if (jsonDump.channel) {
-    linkLabel += ` @${jsonDump.channel}`;
-  } else if (jsonDump.uploader) {
-    linkLabel += ` @${jsonDump.uploader}`;
-  }
-
-  return linkLabel;
-}
-
 async function handleComponentInteraction(interaction: ValidInteraction, reply: Message) {
   const filter = (i: MessageComponentInteraction) => i.customId === "delete" && i.user.id === interaction.user.id;
 
@@ -234,27 +219,23 @@ async function createReply({
     name: `output.${extension}`,
   });
 
-  const linkLabel = getLabel(jsonDump);
-
-  const linkButton = new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(linkLabel).setURL(jsonDump.webpage_url);
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(linkButton);
-
-  if (!ephemeral) {
-    row.addComponents(deleteButton);
-  }
+  const embed = getEmbed(jsonDump);
 
   if (interaction.isContextMenuCommand() && !ephemeral) {
     reply = await interaction.targetMessage.reply({
       content: bold(`Requested by ${interaction.user}`),
+      embeds: [embed],
       files: [attachment],
-      components: [row],
       allowedMentions: { repliedUser: false },
     });
 
     interaction.deleteReply();
   } else {
-    reply = await interaction.editReply({ content: "", files: [attachment], components: [row] });
+    reply = await interaction.editReply({
+      content: "",
+      embeds: [embed],
+      files: [attachment],
+    });
   }
 
   return reply;
