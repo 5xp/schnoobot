@@ -37,7 +37,7 @@ const embedStrategies: Record<string, EmbedStrategy> = {
     let title = jsonDump.extractor;
 
     if (["generic", "html5"].includes(title) && jsonDump.webpage_url_domain) {
-      title += jsonDump.webpage_url_domain;
+      title = jsonDump.webpage_url_domain;
     }
 
     if (jsonDump.uploader) {
@@ -85,7 +85,13 @@ function format(input: any): string {
 }
 
 function createEmbed(label: string, url: string, color: ColorResolvable | null, secondaryLabel: string): EmbedBuilder {
-  return new EmbedBuilder().setDescription(hyperlink(label, url)).setColor(color).setFooter({ text: secondaryLabel });
+  const embed = new EmbedBuilder().setDescription(hyperlink(label, url)).setColor(color);
+
+  if (secondaryLabel) {
+    embed.setFooter({ text: secondaryLabel });
+  }
+
+  return embed;
 }
 
 export function getEmbed(jsonDump: Payload): EmbedBuilder {
