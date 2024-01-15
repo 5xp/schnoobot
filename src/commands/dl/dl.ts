@@ -1,10 +1,7 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
-  ActionRowBuilder,
   AttachmentBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChatInputCommandInteraction,
   Guild,
   GuildPremiumTier,
@@ -23,7 +20,6 @@ import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 import { getEmbed } from "./site-embeds";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
-const deleteButton = new ButtonBuilder().setCustomId("delete").setEmoji("🗑️").setStyle(ButtonStyle.Secondary);
 
 export default {
   data: new SlashCommandBuilder()
@@ -68,6 +64,7 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
     formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
     maxFilesize: `${uploadLimit}M`,
     output: `${filePath}.%(ext)s`,
+    playlistItems: "1",
   } as Flags;
 
   let jsonDump: Payload, extension: string;
@@ -148,7 +145,11 @@ async function tryDownload(url: string, options: Flags) {
     console.error(output);
   }
 
-  const extension = jsonDump.ext;
+  const extension = getExtension(jsonDump);
+
+  if (!extension) {
+    throw new Error("Unable to determine file extension.");
+  }
 
   return { jsonDump, extension };
 }
@@ -187,6 +188,12 @@ async function handleUploadError(interaction: ValidInteraction, url: string, err
   }
 
   await interaction.followUp(errorMessage(errorString));
+}
+
+function getExtension(jsonDump: any): string | undefined {
+  const isPlaylist = jsonDump._type === "playlist";
+  const media = isPlaylist ? jsonDump.entries?.[0] : jsonDump;
+  return media?.ext ?? media?.filename?.split(".")?.pop();
 }
 
 async function handleComponentInteraction(interaction: ValidInteraction, reply: Message) {
