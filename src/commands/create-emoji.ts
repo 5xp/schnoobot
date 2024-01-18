@@ -9,6 +9,8 @@ import {
 } from "discord.js";
 import { z } from "zod";
 
+const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
 export default {
   data: new SlashCommandBuilder()
     .setName("create-emoji")
@@ -71,13 +73,13 @@ export default {
     switch (subcommand) {
       case "attachment": {
         const attachment = interaction.options.getAttachment("image", true);
-        url = attachment.url;
 
-        if (!url.endsWith(".png") && !url.endsWith(".jpg") && !url.endsWith(".jpeg") && !url.endsWith(".gif")) {
+        if (!allowedExtensions.some(extension => attachment.name.endsWith(extension))) {
           await interaction.reply(errorMessage("The attachment must be an image."));
-
           return;
         }
+
+        url = attachment.url;
 
         break;
       }
