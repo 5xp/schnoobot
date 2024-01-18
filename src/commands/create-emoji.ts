@@ -95,7 +95,7 @@ export default {
 
       const embed = new EmbedBuilder()
         .setTitle("Created a new emoji")
-        .setImage(emoji.url)
+        .setImage(emoji.imageURL({ size: 4096 }))
         .setFooter({ text: name })
         .setColor(Colors.Blurple);
 
