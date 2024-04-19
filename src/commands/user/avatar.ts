@@ -73,7 +73,7 @@ export async function run(
 
   if (!componentInteraction) {
     actionRow.components[0].setDisabled(true);
-    interaction.editReply({ components: showGuildAvatar ? [actionRow] : undefined });
+    interaction.editReply({ components: showGuildAvatar ? [actionRow] : undefined }).catch(() => null);
     return;
   }
 

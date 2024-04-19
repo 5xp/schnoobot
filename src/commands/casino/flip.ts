@@ -69,9 +69,11 @@ async function run(
     run(componentInteraction, client, choice, newWager.input, originalWager);
   }
 
-  interaction.editReply({
-    components: createActionRow({ selected, wager, originalWager }),
-  });
+  interaction
+    .editReply({
+      components: createActionRow({ selected, wager, originalWager }),
+    })
+    .catch(() => null);
 }
 
 const FlipChoiceSchema = z.enum(["heads", "tails"]);

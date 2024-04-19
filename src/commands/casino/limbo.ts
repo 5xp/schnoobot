@@ -72,15 +72,17 @@ async function run(
     run(componentInteraction, client, targetMultiplier, newWager.input, originalWager);
   }
 
-  interaction.editReply({
-    components: createActionRow({
-      multiplier: playAgainMultiplier,
-      selected,
-      win,
-      wager,
-      originalWager,
-    }),
-  });
+  interaction
+    .editReply({
+      components: createActionRow({
+        multiplier: playAgainMultiplier,
+        selected,
+        win,
+        wager,
+        originalWager,
+      }),
+    })
+    .catch(() => null);
 }
 
 type ButtonSelection = "playAgain" | "multiplier" | "originalWager" | "none";

@@ -447,9 +447,12 @@ async function run(
       run(optionInteraction, client, numMines, newWager.input, originalWager);
     }
 
-    optionResponse.edit({
-      components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager, selected }),
-    });
+    interaction
+      .editReply({
+        message: optionResponse,
+        components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager, selected }),
+      })
+      .catch(() => null);
   }
 
   gridComponentCollector.on("collect", async (i: MessageComponentInteraction) => {
@@ -460,12 +463,15 @@ async function run(
     originalWager = <Currency>originalWager;
 
     const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    i.update({ embeds: [embed], components: grid.cellActionRows });
+    i.update({ embeds: [embed], components: grid.cellActionRows }).catch(() => null);
 
     if (grid.gameOver) {
-      optionResponse.edit({
-        components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
-      });
+      interaction
+        .editReply({
+          message: optionResponse,
+          components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
+        })
+        .catch(() => null);
 
       handleGameOver();
     }
@@ -476,8 +482,13 @@ async function run(
     originalWager = <Currency>originalWager;
 
     const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    gridResponse.edit({ embeds: [embed], components: grid.cellActionRows });
-    i.update({ components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }) });
+    interaction
+      .editReply({ message: gridResponse, embeds: [embed], components: grid.cellActionRows })
+      .catch(() => null);
+
+    i.update({
+      components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
+    }).catch(() => null);
 
     handleGameOver();
   });
@@ -489,8 +500,9 @@ async function run(
     grid.cashOut();
 
     const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    gridResponse.edit({ embeds: [embed], components: grid.cellActionRows });
-    optionResponse.edit({
+    interaction.editReply({ message: gridResponse, embeds: [embed], components: grid.cellActionRows });
+    interaction.editReply({
+      message: optionResponse,
       components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
     });
 
