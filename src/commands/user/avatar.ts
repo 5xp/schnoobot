@@ -18,6 +18,7 @@ export default {
     .setName("avatar")
     .setDescription("Get yourself or another user's avatar")
     .addUserOption(option => option.setName("user").setDescription("The user to get the avatar of").setRequired(false)),
+  isUserCommand: true,
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     const user = interaction.options.getUser("user") ?? interaction.user;
     const guildMember = interaction.inCachedGuild() ? interaction.guild.members.resolve(user) : null;

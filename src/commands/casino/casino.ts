@@ -73,6 +73,7 @@ export default {
           option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
         ),
     ),
+  isUserCommand: true,
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const subcommand = interaction.options.getSubcommand();

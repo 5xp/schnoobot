@@ -58,7 +58,16 @@ export default class ExtendedClient extends Client {
 
     commandsCollection.forEach(command => {
       if (command.devOnly && options.global) return;
-      commands.push(command.data.toJSON());
+
+      let json = command.data.toJSON();
+
+      // Temporary hack for enabling user commands
+      if (command.isUserCommand) {
+        // @ts-ignore
+        json = { ...json, integration_types: [0, 1], contexts: [0, 1, 2] };
+      }
+
+      commands.push(json);
     });
 
     console.log(`Started refreshing ${commands.length} application (/) commands.`);

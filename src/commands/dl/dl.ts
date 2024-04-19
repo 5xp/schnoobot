@@ -31,6 +31,7 @@ export default {
     .addBooleanOption(option =>
       option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
     ),
+  isUserCommand: true,
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
     const url = interaction.options.getString("url", true);
     const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;

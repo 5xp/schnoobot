@@ -51,6 +51,7 @@ async function selectUrl(interaction: MessageContextMenuCommandInteraction, urls
 
 export default {
   data: new ContextMenuCommandBuilder().setName("Download Videos").setType(ApplicationCommandType.Message),
+  isUserCommand: true,
   async execute(
     interaction: MessageContextMenuCommandInteraction,
     client: ExtendedClient,

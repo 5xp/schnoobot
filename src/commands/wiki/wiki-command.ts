@@ -25,6 +25,7 @@ export default {
     .addBooleanOption(option =>
       option.setName("hide").setDescription("Make the response ephemeral").setRequired(false),
     ),
+  isUserCommand: true,
   execute,
   autocomplete,
 };
