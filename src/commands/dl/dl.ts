@@ -1,7 +1,10 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
+  ActionRowBuilder,
   AttachmentBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   Guild,
   GuildPremiumTier,
@@ -156,8 +159,6 @@ async function tryDownload(url: string, options: Flags) {
 }
 
 async function handleDownloadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
-  console.error(url, error);
-
   if (!ephemeral) {
     await interaction.deleteReply();
   }
@@ -170,12 +171,10 @@ async function handleDownloadError(interaction: ValidInteraction, url: string, e
     errorString += ".";
   }
 
-  await interaction.followUp(errorMessage(errorString));
+  errorReply(interaction, error, errorString, url);
 }
 
 async function handleUploadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
-  console.error(url, error);
-
   if (!ephemeral) {
     await interaction.deleteReply();
   }
@@ -188,7 +187,29 @@ async function handleUploadError(interaction: ValidInteraction, url: string, err
     errorString += ".";
   }
 
-  await interaction.followUp(errorMessage(errorString));
+  errorReply(interaction, error, errorString, url);
+}
+
+async function errorReply(interaction: ValidInteraction, error: unknown, errorString: string, url: string) {
+  const logButton = new ButtonBuilder().setCustomId("log").setLabel("Log Error").setStyle(ButtonStyle.Secondary);
+
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(logButton);
+
+  const response = await interaction.followUp({
+    ...errorMessage(errorString),
+    components: [actionRow],
+  });
+
+  const i = await response.awaitMessageComponent({ time: 120_000 }).catch(() => null);
+
+  if (!i) {
+    return;
+  }
+
+  if (i.customId === "log") {
+    console.error(url, error);
+    i.reply({ content: "The error has been logged.", ephemeral: true });
+  }
 }
 
 function getExtension(jsonDump: any): string | undefined {
