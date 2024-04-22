@@ -80,19 +80,15 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
     return;
   }
 
-  let reply: Message;
-
   try {
     await deferPromise;
-    reply = await createReply({ interaction, filePath, extension, jsonDump, ephemeral });
+    createReply({ interaction, filePath, extension, jsonDump, ephemeral });
   } catch (error) {
     handleUploadError(interaction, url, error, ephemeral);
     return;
   } finally {
     unlink(`${filePath}.${extension}`, () => null);
   }
-
-  handleComponentInteraction(interaction, reply);
 }
 
 function getUploadLimit(guild: Guild | null): number {
@@ -216,23 +212,6 @@ function getExtension(jsonDump: any): string | undefined {
   const isPlaylist = jsonDump._type === "playlist";
   const media = isPlaylist ? jsonDump.entries?.[0] : jsonDump;
   return media?.ext ?? media?.filename?.split(".")?.pop();
-}
-
-async function handleComponentInteraction(interaction: ValidInteraction, reply: Message) {
-  const filter = (i: MessageComponentInteraction) => i.customId === "delete" && i.user.id === interaction.user.id;
-
-  const i = await reply.awaitMessageComponent({ filter, time: 180_000 }).catch(() => null);
-
-  if (!i) {
-    return;
-  }
-
-  if (interaction.isContextMenuCommand()) {
-    await reply.delete();
-    return;
-  }
-
-  interaction.deleteReply();
 }
 
 async function createReply({
