@@ -59,6 +59,9 @@ export default {
   ): Promise<void> {
     const message = interaction.targetMessage;
 
+    // If the target message has no channel, we can't reply to it
+    ephemeral ||= !interaction.targetMessage.channel;
+
     let urls = message.content.match(urlRegex);
 
     if (!urls) {

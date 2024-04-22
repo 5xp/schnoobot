@@ -82,7 +82,7 @@ export async function run({ interaction, url, ephemeral }: DlRunOptions): Promis
 
   try {
     await deferPromise;
-    createReply({ interaction, filePath, extension, jsonDump, ephemeral });
+    await createReply({ interaction, filePath, extension, jsonDump, ephemeral });
   } catch (error) {
     handleUploadError(interaction, url, error, ephemeral);
     return;
@@ -214,15 +214,7 @@ function getExtension(jsonDump: any): string | undefined {
   return media?.ext ?? media?.filename?.split(".")?.pop();
 }
 
-async function createReply({
-  interaction,
-  filePath,
-  extension,
-  jsonDump,
-  ephemeral,
-}: DlReplyOptions): Promise<Message> {
-  let reply;
-
+async function createReply({ interaction, filePath, extension, jsonDump, ephemeral }: DlReplyOptions): Promise<void> {
   const attachment = new AttachmentBuilder(`${filePath}.${extension}`, {
     name: `output.${extension}`,
   });
@@ -230,7 +222,7 @@ async function createReply({
   const embed = getEmbed(jsonDump);
 
   if (interaction.isContextMenuCommand() && !ephemeral) {
-    reply = await interaction.targetMessage.reply({
+    await interaction.targetMessage.reply({
       content: bold(`Requested by ${interaction.user}`),
       embeds: [embed],
       files: [attachment],
@@ -239,14 +231,12 @@ async function createReply({
 
     interaction.deleteReply();
   } else {
-    reply = await interaction.editReply({
+    await interaction.editReply({
       content: "",
       embeds: [embed],
       files: [attachment],
     });
   }
-
-  return reply;
 }
 
 type ValidInteraction = ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
