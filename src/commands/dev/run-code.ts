@@ -38,17 +38,21 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
   const filter = (i: ModalSubmitInteraction) => i.customId === "run-code";
 
-  const submission = await interaction.awaitModalSubmit({ filter, time: 120_000 }).catch(() => null);
+  const submission = await interaction.awaitModalSubmit({ filter, time: 300_000 }).catch(() => null);
 
   if (!submission) {
-    await interaction.reply({ content: bold("Interaction timed out."), ephemeral: true });
     return;
   }
 
   const code = submission.fields.getTextInputValue("code");
   const codeFormatted = codeBlock("js", code);
 
-  let evaled = await eval(code);
+  let evaled: any;
+  try {
+    evaled = await eval(code);
+  } catch (error) {
+    evaled = error;
+  }
 
   if (typeof evaled !== "string") {
     evaled = require("util").inspect(evaled);
