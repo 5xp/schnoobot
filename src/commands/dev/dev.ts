@@ -8,6 +8,7 @@ export default {
     .setName("dev")
     .setDescription("Developer commands")
     .addSubcommand(subcommand => subcommand.setName("run-code").setDescription("Run code"))
+    .addSubcommand(subcommand => subcommand.setName("update-ytdlp").setDescription("Update youtube-dl"))
     .addSubcommandGroup(subcommandGroup =>
       subcommandGroup
         .setName("manage-commands")
