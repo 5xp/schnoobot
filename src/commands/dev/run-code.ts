@@ -22,12 +22,6 @@ function clean(text: string): string {
 }
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
-  if (interaction.user.id !== client.application?.owner?.id) {
-    await interaction.reply(errorMessage("Only the bot owner can use this command."));
-
-    return;
-  }
-
   const modal = new ModalBuilder().setCustomId("run-code").setTitle("Run code");
 
   const codeInput = new TextInputBuilder()

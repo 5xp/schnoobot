@@ -1,6 +1,6 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, ClientApplication, SlashCommandBuilder } from "discord.js";
 
 export default {
   devOnly: true,
@@ -44,7 +44,7 @@ export default {
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
-    if (interaction.user.id !== client.application?.owner?.id) {
+    if (!isDev(client.application, interaction.user.id)) {
       await interaction.reply(errorMessage("Only the bot owner can use this command."));
 
       return;
@@ -60,3 +60,22 @@ export default {
     execute(interaction, client);
   },
 };
+
+function isDev(application: ClientApplication | null, userId: string): boolean {
+  if (!application) {
+    return false;
+  }
+
+  const owner = application.owner;
+
+  if (owner === null) {
+    return false;
+  }
+
+  // Check if the owner is a team
+  if ("members" in owner) {
+    return owner.members.some(member => member.user.id === userId);
+  }
+
+  return owner.id === userId;
+}
