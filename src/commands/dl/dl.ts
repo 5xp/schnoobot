@@ -9,8 +9,6 @@ import {
   Guild,
   GuildPremiumTier,
   InteractionResponse,
-  Message,
-  MessageComponentInteraction,
   MessageContextMenuCommandInteraction,
   SlashCommandBuilder,
   bold,
@@ -18,9 +16,9 @@ import {
   hideLinkEmbed,
   hyperlink,
 } from "discord.js";
-import { unlink } from "fs";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 import { getEmbed } from "./site-embeds";
+import { Readable } from "stream";
 
 const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
 
@@ -51,43 +49,33 @@ export default {
 export async function run({ interaction, url, ephemeral }: DlRunOptions): Promise<void> {
   const isContextMenuCommand = interaction.isContextMenuCommand();
 
-  let deferPromise: Promise<InteractionResponse> | null = null;
-
   if (!interaction.deferred && !interaction.replied) {
-    deferPromise = interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
+    await interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
   }
-
-  const fileName = `${interaction.user.id}-${Date.now()}`;
-  const filePath = `./temp/${fileName}`;
 
   const uploadLimit = getUploadLimit(interaction.guild);
 
-  const format = "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/b";
   const options: Flags = {
-    format: format,
+    format: "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/ba[ext=mp3]/b",
     formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
     maxFilesize: `${uploadLimit}M`,
-    output: `${filePath}.%(ext)s`,
+    noProgress: true,
     playlistItems: "1",
   } as Flags;
 
-  let jsonDump: Payload, extension: string;
+  let buffer: Buffer, jsonDump: Payload, extension: string;
 
   try {
-    ({ jsonDump, extension } = await tryDownload(url, options));
+    ({ buffer, jsonDump, extension } = await tryDownload(url, options));
   } catch (error) {
-    handleDownloadError(interaction, url, error, ephemeral);
+    errorReply(interaction, error, url, ephemeral, true);
     return;
   }
 
   try {
-    await deferPromise;
-    await createReply({ interaction, filePath, extension, jsonDump, ephemeral });
+    await createReply({ interaction, buffer, extension, jsonDump, ephemeral });
   } catch (error) {
-    handleUploadError(interaction, url, error, ephemeral);
-    return;
-  } finally {
-    unlink(`${filePath}.${extension}`, () => null);
+    errorReply(interaction, error, url, ephemeral, false);
   }
 }
 
@@ -106,9 +94,59 @@ function getUploadLimit(guild: Guild | null): number {
   }
 }
 
+type DownloadResult = {
+  buffer: Buffer;
+  output: string;
+};
+
+async function downloadToBuffer(url: string, options: any): Promise<DownloadResult> {
+  return new Promise((resolve, reject) => {
+    const process = youtubeDl.exec(url, options, { stdio: ["ignore", "pipe", "pipe"] });
+
+    if (!process.stdout || !process.stderr) {
+      throw new Error("Unable to read process streams.");
+    }
+
+    process.catch(reject);
+
+    const promises = [readStream(process.stdout), readStream(process.stderr)];
+
+    Promise.all(promises)
+      .then(([buffer, output]) => resolve({ buffer, output: output.toString("utf-8") }))
+      .catch(reject);
+  });
+}
+
+async function readStream(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+
+  return new Promise((resolve, reject) => {
+    stream.on("data", chunk => {
+      chunks.push(chunk);
+    });
+
+    stream.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+
+    stream.on("error", reject);
+  });
+}
+
+function isDownloadResult(result: unknown): result is DownloadResult {
+  return typeof result === "object" && result !== null && "buffer" in result && Buffer.isBuffer(result.buffer);
+}
+
+function isPayload(result: unknown): result is Payload {
+  return typeof result === "object" && result !== null && "_type" in result;
+}
+
 async function tryDownload(url: string, options: Flags) {
   const promises = [
-    youtubeDl(url, options),
+    downloadToBuffer(url, {
+      ...options,
+      output: "-",
+    }),
     youtubeDl(url, {
       ...options,
       dumpSingleJson: true,
@@ -117,22 +155,24 @@ async function tryDownload(url: string, options: Flags) {
 
   const results = await Promise.allSettled(promises);
 
-  const [outputResult, jsonDumpResult] = results;
+  const [downloadResultResult, jsonDumpResult] = results;
 
-  if (outputResult.status === "rejected" || jsonDumpResult.status === "rejected") {
-    const reason = jsonDumpResult.status === "rejected" ? jsonDumpResult.reason : null;
+  if (downloadResultResult.status === "rejected" || jsonDumpResult.status === "rejected") {
+    const reason = results.find(result => result.status === "rejected")?.reason;
 
     throw reason;
   }
 
-  // This is incorrectly typed as Payload, but it's actually a string in most cases
-  const output = outputResult.value as unknown as string;
-  const jsonDump = jsonDumpResult.value;
+  if (!isDownloadResult(downloadResultResult.value) || !isPayload(jsonDumpResult.value)) {
+    throw new Error("Unexpected result from download.");
+  }
 
-  if (typeof output === "string" && output.includes("Aborting.")) {
+  const downloadResult = downloadResultResult.value;
+
+  if (downloadResult.output.includes("File is larger than max-filesize")) {
     let errorString = "The requested media is too large.";
 
-    const sizeString = output.match(/\d+(?= bytes >)/);
+    const sizeString = downloadResult.output.match(/\d+(?= bytes >)/);
 
     if (sizeString) {
       const size = Number(sizeString[0]) / 1_000_000;
@@ -140,10 +180,9 @@ async function tryDownload(url: string, options: Flags) {
     }
 
     throw new Error(errorString);
-  } else if (typeof output !== "string") {
-    console.error("Expected output to be a string:");
-    console.error(output);
   }
+
+  const jsonDump = jsonDumpResult.value;
 
   const extension = getExtension(jsonDump);
 
@@ -151,42 +190,25 @@ async function tryDownload(url: string, options: Flags) {
     throw new Error("Unable to determine file extension.");
   }
 
-  return { jsonDump, extension };
+  return { buffer: downloadResult.buffer, jsonDump, extension };
 }
 
-async function handleDownloadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
+async function errorReply(
+  interaction: ValidInteraction,
+  error: unknown,
+  url: string,
+  ephemeral: boolean,
+  isDownloadError: boolean,
+) {
   if (!ephemeral) {
     await interaction.deleteReply();
   }
 
-  let errorString = hyperlink("An error occured while downloading media", hideLinkEmbed(url));
+  let errorString = `An error occured while ${isDownloadError ? "downloading" : "uploading"} media`;
+  errorString = hyperlink(errorString, hideLinkEmbed(url));
 
-  if (error instanceof Error) {
-    errorString += `: ${codeBlock(error.message)}`;
-  } else {
-    errorString += ".";
-  }
+  errorString += error instanceof Error ? `: ${codeBlock(error.message)}` : ".";
 
-  errorReply(interaction, error, errorString, url);
-}
-
-async function handleUploadError(interaction: ValidInteraction, url: string, error: unknown, ephemeral: boolean) {
-  if (!ephemeral) {
-    await interaction.deleteReply();
-  }
-
-  let errorString = hyperlink("An error occured while uploading media", hideLinkEmbed(url));
-
-  if (error instanceof Error) {
-    errorString += `: ${codeBlock(error.message)}`;
-  } else {
-    errorString += ".";
-  }
-
-  errorReply(interaction, error, errorString, url);
-}
-
-async function errorReply(interaction: ValidInteraction, error: unknown, errorString: string, url: string) {
   const logButton = new ButtonBuilder().setCustomId("log").setLabel("Log Error").setStyle(ButtonStyle.Secondary);
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(logButton);
@@ -214,9 +236,9 @@ function getExtension(jsonDump: any): string | undefined {
   return media?.ext ?? media?.filename?.split(".")?.pop();
 }
 
-async function createReply({ interaction, filePath, extension, jsonDump, ephemeral }: DlReplyOptions): Promise<void> {
-  const attachment = new AttachmentBuilder(`${filePath}.${extension}`, {
-    name: `output.${extension}`,
+async function createReply({ interaction, buffer, extension, jsonDump, ephemeral }: DlReplyOptions): Promise<void> {
+  const attachment = new AttachmentBuilder(buffer, {
+    name: `?.${extension}`,
   });
 
   const embed = getEmbed(jsonDump);
@@ -249,7 +271,7 @@ type DlRunOptions = {
 
 type DlReplyOptions = {
   interaction: ValidInteraction;
-  filePath: string;
+  buffer: Buffer;
   extension: string;
   jsonDump: Payload;
   ephemeral: boolean;
