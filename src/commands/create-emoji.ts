@@ -1,8 +1,12 @@
 import { errorMessage } from "@common/reply-utils";
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   Colors,
   EmbedBuilder,
+  MessageComponentInteraction,
   PermissionFlagsBits,
   SlashCommandBuilder,
   inlineCode,
@@ -49,12 +53,12 @@ export default {
     .setDMPermission(false),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.inCachedGuild()) {
-      interaction.reply(errorMessage("This command can only be used in a server."));
+      await interaction.reply(errorMessage("This command can only be used in a server."));
       return;
     }
 
     if (!interaction.appPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) {
-      interaction.reply(errorMessage(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`));
+      await interaction.reply(errorMessage(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`));
       return;
     }
 
@@ -62,7 +66,6 @@ export default {
 
     if (name.includes(" ")) {
       await interaction.reply(errorMessage("The name of the emoji cannot contain spaces."));
-
       return;
     }
 
@@ -90,26 +93,61 @@ export default {
 
     await interaction.deferReply();
 
-    try {
-      const emoji = await interaction.guild.emojis.create({ attachment: url, name });
+    const emoji = await interaction.guild.emojis
+      .create({ attachment: url, name, reason: `Requested by ${interaction.user.tag}` })
+      .catch(error => {
+        console.error(error);
 
-      const embed = new EmbedBuilder()
-        .setTitle("Created a new emoji")
-        .setImage(emoji.imageURL({ size: 4096 }))
-        .setFooter({ text: name })
-        .setColor(Colors.Blurple);
+        const errorResult = errorSchema.safeParse(error);
+        const errorString = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
 
-      await interaction.editReply({ embeds: [embed] });
-    } catch (error) {
+        interaction.editReply(
+          errorMessage(`There was an error trying to create the emoji: ${inlineCode(errorString)}`),
+        );
+      });
+
+    if (!emoji) {
+      return;
+    }
+
+    const extension = emoji.animated ? "gif" : "webp";
+
+    const embed = new EmbedBuilder()
+      .setTitle("Created a new emoji")
+      .setImage(emoji.imageURL({ size: 4096, extension }))
+      .setFooter({ text: name })
+      .setColor(Colors.Blurple);
+
+    const deleteButton = new ButtonBuilder().setCustomId("delete").setLabel("Delete").setStyle(ButtonStyle.Secondary);
+    const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(deleteButton);
+
+    const response = await interaction.editReply({ embeds: [embed], components: [actionRow] });
+    const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
+    const componentInteraction = await response.awaitMessageComponent({ filter, time: 60_000 }).catch(() => null);
+
+    if (!componentInteraction || componentInteraction.customId !== "delete") {
+      return;
+    }
+
+    await interaction.deleteReply();
+
+    const deleted = await emoji.delete(`Deleted by ${interaction.user.tag}`).catch(error => {
       console.error(error);
 
       const errorResult = errorSchema.safeParse(error);
       const errorString = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
 
-      await interaction.editReply(
-        errorMessage(`There was an error trying to create the emoji: ${inlineCode(errorString)}`),
-      );
+      interaction.followUp(errorMessage(`There was an error trying to delete the emoji: ${inlineCode(errorString)}`));
+    });
+
+    if (!deleted) {
+      return;
     }
+
+    await componentInteraction.reply({
+      content: `The emoji ${inlineCode(name)} has been deleted.`,
+      ephemeral: true,
+    });
   },
 };
 
