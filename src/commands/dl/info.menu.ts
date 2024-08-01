@@ -48,17 +48,10 @@ async function selectUrl(interaction: MessageContextMenuCommandInteraction, urls
 }
 
 export default {
-  data: new ContextMenuCommandBuilder().setName("Download Media from URL").setType(ApplicationCommandType.Message),
+  data: new ContextMenuCommandBuilder().setName("Get Media Info").setType(ApplicationCommandType.Message),
   isUserCommand: true,
-  async execute(
-    interaction: MessageContextMenuCommandInteraction,
-    client: ExtendedClient,
-    ephemeral = false,
-  ): Promise<void> {
+  async execute(interaction: MessageContextMenuCommandInteraction, client: ExtendedClient): Promise<void> {
     const message = interaction.targetMessage;
-
-    // If the target message has no channel, we can't reply to it
-    ephemeral ||= !interaction.targetMessage.channel;
 
     let urls = message.content.match(urlRegex);
 
@@ -79,6 +72,6 @@ export default {
 
     if (!url) return;
 
-    run({ interaction, url, ephemeral });
+    run({ interaction, url, ephemeral: true, jsonOnly: true });
   },
 };
