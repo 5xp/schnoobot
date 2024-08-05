@@ -143,6 +143,10 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
   componentCollector.on("end", async () => {
     await interaction.editReply({ components: [] }).catch(() => null);
   });
+
+  componentCollector.on("ignore", async i => {
+    await i.reply(errorMessage("Only the user who initiated the command can reroll."));
+  });
 }
 
 type SelectedPost = {
@@ -287,7 +291,11 @@ function getRandomThread(threads: CatalogThread[], excludeText: boolean): Catalo
 async function getRandomPost(board: string, thread: CatalogThread, excludeText: boolean, videosOnly: boolean) {
   let posts = await fetchThread(board, thread.no);
 
-  const replyCount = thread.replies;
+  if (posts[0].filename) {
+    thread.images++;
+  }
+
+  const replyCount = ++thread.replies;
   let imageCount: number, videoCount: number;
 
   if (excludeText) {
