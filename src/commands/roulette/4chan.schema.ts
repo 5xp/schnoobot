@@ -24,7 +24,7 @@ export const threadSchema = z.object({
   posts: z.array(
     z.object({
       no: z.number(),
-      name: z.string(),
+      name: z.string().optional(),
       sub: z.string().optional(),
       com: z.string().optional(),
       tim: z.number().optional(),

@@ -93,7 +93,6 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
     nsfwAllowed,
     numRerolls,
   }).catch(async error => {
-    console.error(error);
     if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
       await interaction.reply(errorMessage(error.message));
     }
@@ -126,7 +125,15 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
       nsfwAllowed,
       numRerolls,
       ...(i.customId === "reroll-thread" ? { threadOverride: lastThreadNo } : {}),
+    }).catch(async error => {
+      if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+        await i.editReply(errorMessage(error.message));
+      }
     });
+
+    if (!nextRunResult) {
+      return;
+    }
 
     lastThreadNo = nextRunResult.selectedPost.threadNo;
 
@@ -223,8 +230,15 @@ async function fetchCatalog(board: string): Promise<CatalogThread[]> {
   const response = await fetch(url);
   const json = await response.json();
 
-  const catalog = catalogSchema.parse(json);
-  const threads: CatalogThread[] = catalog.flatMap(page => page.threads);
+  const catalogParseResult = catalogSchema.safeParse(json);
+
+  if (!catalogParseResult.success) {
+    console.error(json);
+    console.error(catalogParseResult.error);
+    throw new Error("Error parsing catalog.");
+  }
+
+  const threads: CatalogThread[] = catalogParseResult.data.flatMap(page => page.threads);
 
   catalogCache.set(board, threads);
 
@@ -308,6 +322,8 @@ function createPostEmbed(
   const embed = new EmbedBuilder().setColor("#3f9031");
 
   if (post) {
+    post.name ??= "Anonymous";
+
     embed
       .setTitle(`/${board}/ • ${post.name} • ${post.no}`)
       .setURL(`https://boards.4chan.org/${board}/thread/${thread.no}#p${post.no}`)
@@ -366,8 +382,17 @@ async function fetchThread(board: string, thread: number): Promise<ThreadPost[]>
 
   const url = `https://a.4cdn.org/${board}/thread/${thread}.json`;
   const response = await fetch(url);
+  const json = await response.json();
 
-  const threadPosts = threadSchema.parse(await response.json())["posts"];
+  const threadPostsParseResult = threadSchema.safeParse(json);
+
+  if (!threadPostsParseResult.success) {
+    console.error(json);
+    console.error(threadPostsParseResult.error);
+    throw new Error("Error parsing thread posts.");
+  }
+
+  const threadPosts = threadPostsParseResult.data.posts;
 
   threadCache.set(key, threadPosts);
 
