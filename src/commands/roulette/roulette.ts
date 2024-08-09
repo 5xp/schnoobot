@@ -35,7 +35,10 @@ export default {
             .setRequired(false),
         )
         .addBooleanOption(option =>
-          option.setName("exclude-text").setDescription("Exclude posts that contain only text").setRequired(false),
+          option
+            .setName("exclude-text")
+            .setDescription("Exclude posts that contain only text. Defaults to true.")
+            .setRequired(false),
         )
         .addBooleanOption(option =>
           option.setName("videos-only").setDescription("Get posts that only have videos").setRequired(false),

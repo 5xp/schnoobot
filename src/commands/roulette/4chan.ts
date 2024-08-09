@@ -2,16 +2,18 @@ import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
   ActionRowBuilder,
-  AttachmentBuilder,
   AutocompleteInteraction,
+  BaseMessageOptions,
+  bold,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  hideLinkEmbed,
+  hyperlink,
   Interaction,
   MessageComponentInteraction,
-  MessageCreateOptions,
+  time,
 } from "discord.js";
 import fuzzysort from "fuzzysort";
 import NodeCache from "node-cache";
@@ -24,18 +26,13 @@ const rerollKeepBoardButton = new ButtonBuilder()
   .setCustomId("reroll-board")
   .setEmoji("🎲");
 const rerollKeepThreadButton = new ButtonBuilder()
-  .setLabel("Reroll (keep thread)")
+  .setLabel("Reroll in thread")
   .setStyle(ButtonStyle.Secondary)
   .setCustomId("reroll-thread")
   .setEmoji("🔀");
-const loadingButton = new ButtonBuilder()
-  .setLabel("Loading...")
-  .setStyle(ButtonStyle.Secondary)
-  .setCustomId("loading")
-  .setDisabled(true);
 
-const catalogCache = new NodeCache({ stdTTL: 10 * 60 * 1000, checkperiod: 60 });
-const threadCache = new NodeCache({ stdTTL: 60 * 1000, checkperiod: 30 });
+const catalogCache = new NodeCache({ stdTTL: 60 * 60 * 1000, checkperiod: 60 });
+const threadCache = new NodeCache({ stdTTL: 10 * 60 * 1000, checkperiod: 30 });
 
 type RunOptions = {
   board: string;
@@ -77,7 +74,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
   const threadNo = interaction.options.getInteger("thread-no");
   const threadTitle = interaction.options.getString("thread-title");
   const threadSubtitle = interaction.options.getString("thread-subtitle");
-  const excludeText = interaction.options.getBoolean("exclude-text") ?? false;
+  const excludeText = interaction.options.getBoolean("exclude-text") ?? true;
   const videosOnly = interaction.options.getBoolean("videos-only") ?? false;
   const nsfwAllowed = inNsfwChannel(interaction);
 
@@ -105,15 +102,12 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
   await interaction.deferReply();
   const response = await interaction.editReply(runResult.messageOptions);
   const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
-  const componentCollector = response.createMessageComponentCollector({ filter, idle: 80_000 });
+  const componentCollector = response.createMessageComponentCollector({ filter, idle: 180_000 });
 
   let lastThreadNo = runResult.selectedPost.threadNo;
 
   componentCollector.on("collect", async i => {
     numRerolls++;
-
-    const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(loadingButton);
-    await i.update({ components: [actionRow] });
 
     const nextRunResult = await run({
       board,
@@ -127,7 +121,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
       ...(i.customId === "reroll-thread" ? { threadOverride: lastThreadNo } : {}),
     }).catch(async error => {
       if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
-        await i.editReply(errorMessage(error.message));
+        await i.update(errorMessage(error.message)).catch(() => null);
       }
     });
 
@@ -137,7 +131,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
     lastThreadNo = nextRunResult.selectedPost.threadNo;
 
-    await i.editReply(nextRunResult.messageOptions).catch(() => null);
+    await i.update(nextRunResult.messageOptions).catch(() => null);
   });
 
   componentCollector.on("end", async () => {
@@ -157,7 +151,7 @@ type SelectedPost = {
 
 type RunResult = {
   selectedPost: SelectedPost;
-  messageOptions: MessageCreateOptions;
+  messageOptions: BaseMessageOptions;
 };
 
 async function run(options: RunOptions): Promise<RunResult> {
@@ -196,15 +190,7 @@ async function run(options: RunOptions): Promise<RunResult> {
 
   const { post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, excludeText, videosOnly);
 
-  const { embed, content, attachment } = createPostEmbed(
-    post,
-    board,
-    thread,
-    numRerolls,
-    replyCount,
-    imageCount,
-    videoCount,
-  );
+  const content = createPostContent(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(rerollKeepBoardButton);
 
@@ -216,8 +202,6 @@ async function run(options: RunOptions): Promise<RunResult> {
     selectedPost: { board, threadNo: thread.no, postNo: post?.no },
     messageOptions: {
       content,
-      files: attachment ? [attachment] : [],
-      embeds: [embed],
       components: [actionRow],
     },
   };
@@ -315,7 +299,7 @@ async function getRandomPost(board: string, thread: CatalogThread, excludeText: 
   return { post, replyCount, imageCount, videoCount };
 }
 
-function createPostEmbed(
+function createPostContent(
   post: ThreadPost | undefined,
   board: string,
   thread: CatalogThread,
@@ -324,56 +308,58 @@ function createPostEmbed(
   imageCount: number,
   videoCount: number,
 ) {
-  let content = "";
-  let attachment: AttachmentBuilder | undefined;
+  let content = "",
+    description = "";
 
-  const embed = new EmbedBuilder().setColor("#3f9031");
+  let heading = `/${board}/`;
 
-  if (post) {
-    post.name ??= "Anonymous";
-
-    embed
-      .setTitle(`/${board}/ • ${post.name} • ${post.no}`)
-      .setURL(`https://boards.4chan.org/${board}/thread/${thread.no}#p${post.no}`)
-      .setTimestamp(post.time * 1000);
-  } else {
-    embed
-      .setTitle(`/${board}/`)
-      .setURL(`https://boards.4chan.org/${board}/thread/${thread.no}`)
-      .setColor("Red")
-      .setDescription("No posts matched the given criteria.");
+  if (!thread.sub && thread.com) {
+    thread.sub = fixHTML(removeHTML(thread.com)).split("\n")[0].slice(0, 50);
   }
 
-  if (post?.com) {
-    let description = fixHTML(removeHTML(post.com));
-    description = description.replace(
-      /\>\>(\d+)/g,
-      `[>>$1](https://boards.4chan.org/${board}/thread/${thread.no}#p$1)`,
-    );
-    embed.setDescription(description);
+  if (thread.sub) {
+    heading += ` • ${bold(fixHTML(removeHTML(thread.sub)))}`;
+  }
+
+  if (post) {
+    heading = hyperlink(heading, `<https://boards.4chan.org/${board}/thread/${thread.no}#p${post.no}>`);
+    heading += ` ${time(post.time, "R")}`;
+  } else {
+    heading = hyperlink(heading, `<https://boards.4chan.org/${board}/thread/${thread.no}>`);
   }
 
   if (post?.filename) {
-    if (post.ext === ".webm" || post.ext === ".mp4") {
-      // Include the link in the content so mobile users can click on it
-      content = `https://i.4cdn.org/${board}/${post.tim}${post.ext}`;
-      attachment = new AttachmentBuilder(`https://i.4cdn.org/${board}/${post.tim}${post.ext}`);
-    } else {
-      embed.setImage(`https://i.4cdn.org/${board}/${post.tim}${post.ext}`);
-    }
+    heading += ` ${hyperlink("File", `https://i.4cdn.org/${board}/${post.tim}${post.ext}`)}`;
   }
 
-  let footer = `Reroll #${numRerolls}`;
+  if (post?.com) {
+    description = fixHTML(removeHTML(post.com));
+    description = description
+      .replace(/https?:\/\/[^\s]+/g, hideLinkEmbed)
+      .replace(/>>>\/(\w+)\/(\d+)/g, `[>>>/$1/$2](<https://boards.4chan.org/$1/thread/$2#p$2>)`)
+      .replace(/\>\>(\d+)/g, `[>>$1](<https://boards.4chan.org/${board}/thread/${thread.no}#p$1>)`)
+      .replace(/\n/g, "\n> ");
 
-  if (thread.sub) {
-    footer += ` • ${fixHTML(thread.sub)}`;
+    description = `> ${description}`;
   }
 
-  footer += ` • ${replyCount}R/${imageCount}I/${videoCount}V`;
+  const footer = `-# Reroll #${numRerolls} • ${replyCount}R/${imageCount}I/${videoCount}V`;
 
-  embed.setFooter({ text: footer });
+  const totalLength = heading.length + description.length + footer.length;
 
-  return { embed, content, attachment };
+  if (totalLength > 2000) {
+    description = description.slice(0, 2000 - (heading.length + footer.length) - 6) + "...";
+  }
+
+  content = heading;
+
+  if (description) {
+    content += `\n${description}`;
+  }
+
+  content += `\n${footer}`;
+
+  return content;
 }
 
 function inNsfwChannel(interaction: Interaction): boolean {

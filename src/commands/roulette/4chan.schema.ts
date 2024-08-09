@@ -6,7 +6,6 @@ export const catalogSchema = z.array(
     threads: z.array(
       z.object({
         no: z.number(),
-        name: z.string(),
         sub: z.string().optional(),
         com: z.string().optional(),
         replies: z.number(),
@@ -24,7 +23,6 @@ export const threadSchema = z.object({
   posts: z.array(
     z.object({
       no: z.number(),
-      name: z.string().optional(),
       sub: z.string().optional(),
       com: z.string().optional(),
       tim: z.number().optional(),
