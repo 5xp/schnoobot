@@ -22,7 +22,7 @@ export default {
         .addStringOption(option =>
           option
             .setName("type")
-            .setDescription("The type of post to get")
+            .setDescription("The type of post to get. Defaults to images + videos")
             .addChoices(
               { name: "All", value: "all" },
               { name: "Images + Videos", value: "image" },

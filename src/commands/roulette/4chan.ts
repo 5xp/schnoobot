@@ -111,7 +111,7 @@ async function autocompleteThread(
 
   if (focusedValue) {
     options.push(
-      { name: `Threads with "${focusedValue} in title or subtitle"`, value: focusedValue },
+      { name: `Threads with "${focusedValue}" in title or subtitle`, value: focusedValue },
       { name: `Threads with "${focusedValue}" in title only`, value: `title:${focusedValue}` },
       { name: `Threads with "${focusedValue}" in subtitle only`, value: `subtitle:${focusedValue}` },
     );
