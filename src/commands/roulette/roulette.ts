@@ -17,31 +17,18 @@ export default {
             .setAutocomplete(true),
         )
         .addStringOption(option =>
-          option
-            .setName("thread-title")
-            .setDescription("Filters threads that contain the given title")
-            .setRequired(false),
+          option.setName("thread").setDescription("Search for a thread").setAutocomplete(true).setRequired(false),
         )
         .addStringOption(option =>
           option
-            .setName("thread-subtitle")
-            .setDescription("Filters threads that contain the given subtitle")
+            .setName("type")
+            .setDescription("The type of post to get")
+            .addChoices(
+              { name: "All", value: "all" },
+              { name: "Images + Videos", value: "image" },
+              { name: "Videos", value: "video" },
+            )
             .setRequired(false),
-        )
-        .addIntegerOption(option =>
-          option
-            .setName("thread-no")
-            .setDescription("The thread number to get. Ignores previous filters.")
-            .setRequired(false),
-        )
-        .addBooleanOption(option =>
-          option
-            .setName("exclude-text")
-            .setDescription("Exclude posts that contain only text. Defaults to true.")
-            .setRequired(false),
-        )
-        .addBooleanOption(option =>
-          option.setName("videos-only").setDescription("Get posts that only have videos").setRequired(false),
         ),
     ),
   // .addSubcommand(subcommand =>

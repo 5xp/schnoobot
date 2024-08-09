@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+export const threadFilterTypeSchema = z.union([z.literal("all"), z.literal("image"), z.literal("video")]);
+
+export type ThreadFilterType = z.infer<typeof threadFilterTypeSchema>;
+
 export const catalogSchema = z.array(
   z.object({
     page: z.number(),

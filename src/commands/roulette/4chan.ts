@@ -18,7 +18,14 @@ import {
 import fuzzysort from "fuzzysort";
 import NodeCache from "node-cache";
 import boards from "./4chan.boards";
-import { catalogSchema, CatalogThread, ThreadPost, threadSchema } from "./4chan.schema";
+import {
+  catalogSchema,
+  CatalogThread,
+  ThreadFilterType,
+  threadFilterTypeSchema,
+  ThreadPost,
+  threadSchema,
+} from "./4chan.schema";
 
 const rerollKeepBoardButton = new ButtonBuilder()
   .setLabel("Reroll")
@@ -36,19 +43,31 @@ const threadCache = new NodeCache({ stdTTL: 10 * 60 * 1000, checkperiod: 30 });
 
 type RunOptions = {
   board: string;
-  threadNo: number | null;
-  threadTitle: string | null;
-  threadSubtitle: string | null;
-  excludeText: boolean;
-  videosOnly: boolean;
+  threadQuery: string | null;
+  filterType: ThreadFilterType;
   nsfwAllowed: boolean;
   numRerolls: number;
   threadOverride?: number;
 };
 
 export async function autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
-  const focusedValue = interaction.options.getFocused();
+  const focusedOption = interaction.options.getFocused(true);
   const nsfwAllowed = inNsfwChannel(interaction);
+
+  switch (focusedOption.name) {
+    case "board":
+      return autocompleteBoard(interaction, client, nsfwAllowed);
+    case "thread":
+      return autocompleteThread(interaction, client, nsfwAllowed);
+  }
+}
+
+async function autocompleteBoard(
+  interaction: AutocompleteInteraction,
+  _: ExtendedClient,
+  nsfwAllowed: boolean,
+): Promise<void> {
+  const focusedValue = interaction.options.getFocused();
 
   const options = boards
     .filter(board => nsfwAllowed || !board.nsfw)
@@ -69,24 +88,86 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
   await interaction.respond(options.slice(0, 25));
 }
 
+async function autocompleteThread(
+  interaction: AutocompleteInteraction,
+  _: ExtendedClient,
+  nsfwAllowed: boolean,
+): Promise<void> {
+  const focusedValue = interaction.options.getFocused();
+  const board = interaction.options.getString("board", true);
+  const b = boards.find(b => b.value === board);
+
+  if (!b) {
+    await interaction.respond([{ name: "Invalid board. Select a valid board first.", value: "" }]);
+    return;
+  }
+
+  if (!nsfwAllowed && b.nsfw) {
+    await interaction.respond([{ name: "NSFW boards are not allowed here. Select a valid board.", value: "" }]);
+    return;
+  }
+
+  let options: { name: string; value: string }[] = [];
+
+  if (focusedValue) {
+    options.push(
+      { name: `Threads with "${focusedValue} in title or subtitle"`, value: focusedValue },
+      { name: `Threads with "${focusedValue}" in title only`, value: `title:${focusedValue}` },
+      { name: `Threads with "${focusedValue}" in subtitle only`, value: `subtitle:${focusedValue}` },
+    );
+  }
+
+  const threads = await fetchCatalog(interaction.options.getString("board", true));
+  let sortedThreads = threads;
+
+  if (!focusedValue) {
+    sortedThreads = sortedThreads.sort((a, b) => b.images - a.images).slice(0, 25 - options.length);
+  } else {
+    sortedThreads = fuzzysort
+      .go(focusedValue, threads, {
+        keys: ["sub", "com", "no"],
+        limit: 25 - options.length,
+      })
+      .map(result => result.obj);
+  }
+
+  options = options.concat(
+    sortedThreads.map(thread => {
+      let name = "";
+
+      if (thread.sub) {
+        name += fixHTML(removeHTML(thread.sub));
+      } else if (thread.com) {
+        let comment = fixHTML(removeHTML(thread.com)).split("\n")[0];
+        comment = comment.length > 50 ? comment.slice(0, 50) + "..." : comment;
+        name += comment;
+      }
+
+      name += ` (R: ${thread.replies}, I: ${thread.images})`;
+
+      name = name.slice(0, 100);
+
+      return { name, value: `no:${thread.no}` };
+    }),
+  );
+
+  await interaction.respond(options);
+}
+
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const board = interaction.options.getString("board", true);
-  const threadNo = interaction.options.getInteger("thread-no");
-  const threadTitle = interaction.options.getString("thread-title");
-  const threadSubtitle = interaction.options.getString("thread-subtitle");
-  const excludeText = interaction.options.getBoolean("exclude-text") ?? true;
-  const videosOnly = interaction.options.getBoolean("videos-only") ?? false;
+  const threadQuery = interaction.options.getString("thread", false);
+
+  const filterType = threadFilterTypeSchema.parse(interaction.options.getString("type", false) ?? "image");
+
   const nsfwAllowed = inNsfwChannel(interaction);
 
   let numRerolls = 0;
 
   const runResult = await run({
     board,
-    threadNo,
-    threadTitle,
-    threadSubtitle,
-    excludeText,
-    videosOnly,
+    threadQuery,
+    filterType,
     nsfwAllowed,
     numRerolls,
   }).catch(async error => {
@@ -111,11 +192,8 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
     const nextRunResult = await run({
       board,
-      threadNo,
-      threadTitle,
-      threadSubtitle,
-      excludeText,
-      videosOnly,
+      threadQuery,
+      filterType,
       nsfwAllowed,
       numRerolls,
       ...(i.customId === "reroll-thread" ? { threadOverride: lastThreadNo } : {}),
@@ -155,22 +233,11 @@ type RunResult = {
 };
 
 async function run(options: RunOptions): Promise<RunResult> {
-  const {
-    board,
-    threadNo,
-    threadTitle,
-    threadSubtitle,
-    excludeText,
-    videosOnly,
-    nsfwAllowed,
-    threadOverride,
-    numRerolls,
-  } = options;
+  const { board, threadQuery, filterType, nsfwAllowed, threadOverride, numRerolls } = options;
 
   const b = boards.find(b => b.value === board);
 
   if (!b) {
-    console.log(boards);
     throw new Error("Invalid board.");
   }
 
@@ -180,15 +247,15 @@ async function run(options: RunOptions): Promise<RunResult> {
 
   let threads = await fetchCatalog(board);
 
-  threads = filterThreads(threads, threadTitle, threadSubtitle, threadOverride ?? threadNo);
+  threads = filterThreads(threads, threadQuery, threadOverride ?? null);
 
   if (threads.length === 0) {
     throw new Error("No threads found with the given criteria.");
   }
 
-  const thread = getRandomThread(threads, excludeText);
+  const thread = getRandomThread(threads, filterType);
 
-  const { post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, excludeText, videosOnly);
+  const { post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, filterType);
 
   const content = createPostContent(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
@@ -235,34 +302,51 @@ async function fetchCatalog(board: string): Promise<CatalogThread[]> {
 
 function filterThreads(
   threads: CatalogThread[],
-  title: string | null,
-  subtitle: string | null,
-  threadNo: number | null,
+  threadQuery: string | null,
+  threadOverride: number | null,
 ): CatalogThread[] {
-  if (threadNo) {
-    return threads.filter(thread => thread.no === threadNo);
+  if (threadOverride) {
+    return threads.filter(thread => thread.no === threadOverride);
   }
 
-  if (title) {
-    threads = threads.filter(thread => thread.sub?.toLowerCase().includes(title.toLowerCase()));
+  if (!threadQuery) {
+    return threads;
   }
 
-  if (subtitle) {
-    threads = threads.filter(thread => thread.com?.toLowerCase().includes(subtitle.toLowerCase()));
-  }
+  if (threadQuery.startsWith("no:")) {
+    const no = Number(threadQuery.slice(3));
 
-  return threads;
+    return threads.filter(thread => thread.no === no);
+  } else if (threadQuery.startsWith("title:")) {
+    const title = threadQuery.slice(6);
+
+    return threads.filter(thread => thread.sub?.toLowerCase().includes(title.toLowerCase()));
+  } else if (threadQuery.startsWith("subtitle:")) {
+    const subtitle = threadQuery.slice(9);
+
+    return threads.filter(thread => thread.com?.toLowerCase().includes(subtitle.toLowerCase()));
+  } else {
+    return threads.filter(thread => {
+      const title = thread.sub?.toLowerCase() || "";
+      const subtitle = thread.com?.toLowerCase() || "";
+
+      return title.includes(threadQuery.toLowerCase()) || subtitle.includes(threadQuery.toLowerCase());
+    });
+  }
 }
 
-function getRandomThread(threads: CatalogThread[], excludeText: boolean): CatalogThread {
-  const totalReplies = threads.reduce((acc, thread) => acc + (excludeText ? thread.images : thread.replies), 0);
+function getRandomThread(threads: CatalogThread[], filterType: ThreadFilterType): CatalogThread {
+  const totalReplies = threads.reduce(
+    (acc, thread) => acc + (filterType !== "all" ? thread.images : thread.replies),
+    0,
+  );
 
   const randomIndex = Math.floor(Math.random() * totalReplies);
 
   let index = 0;
 
   for (const thread of threads) {
-    index += excludeText ? thread.images : thread.replies;
+    index += filterType !== "all" ? thread.images : thread.replies;
 
     if (index >= randomIndex) {
       return thread;
@@ -272,7 +356,7 @@ function getRandomThread(threads: CatalogThread[], excludeText: boolean): Catalo
   return threads[threads.length - 1];
 }
 
-async function getRandomPost(board: string, thread: CatalogThread, excludeText: boolean, videosOnly: boolean) {
+async function getRandomPost(board: string, thread: CatalogThread, filterType: ThreadFilterType) {
   let posts = await fetchThread(board, thread.no);
 
   if (posts[0].filename) {
@@ -282,7 +366,7 @@ async function getRandomPost(board: string, thread: CatalogThread, excludeText: 
   const replyCount = ++thread.replies;
   let imageCount: number, videoCount: number;
 
-  if (excludeText) {
+  if (filterType !== "all") {
     posts = posts.filter(post => post.filename);
   }
 
@@ -290,7 +374,7 @@ async function getRandomPost(board: string, thread: CatalogThread, excludeText: 
   videoCount = videoPosts.length;
   imageCount = thread.images - videoCount;
 
-  if (videosOnly) {
+  if (filterType === "video") {
     posts = videoPosts;
   }
 
