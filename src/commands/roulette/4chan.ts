@@ -1,5 +1,5 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { errorMessage } from "@common/reply-utils";
+import { errorMessage, truncateString } from "@common/reply-utils";
 import {
   ActionRowBuilder,
   AutocompleteInteraction,
@@ -111,9 +111,15 @@ async function autocompleteThread(
 
   if (focusedValue) {
     options.push(
-      { name: `Threads with "${focusedValue}" in title or subtitle`, value: focusedValue },
-      { name: `Threads with "${focusedValue}" in title only`, value: `title:${focusedValue}` },
-      { name: `Threads with "${focusedValue}" in subtitle only`, value: `subtitle:${focusedValue}` },
+      { name: `Threads with "${truncateString(focusedValue, 100 - 36)}" in title or subtitle`, value: focusedValue },
+      {
+        name: `Threads with "${truncateString(focusedValue, 100 - 29)}" in title only`,
+        value: `title:${focusedValue}`,
+      },
+      {
+        name: `Threads with "${truncateString(focusedValue, 100 - 32)}" in subtitle only`,
+        value: `subtitle:${focusedValue}`,
+      },
     );
   }
 
@@ -139,17 +145,20 @@ async function autocompleteThread(
         name += fixHTML(removeHTML(thread.sub));
       } else if (thread.com) {
         let comment = fixHTML(removeHTML(thread.com)).split("\n")[0];
-        comment = comment.length > 50 ? comment.slice(0, 50) + "..." : comment;
+        comment = truncateString(comment, 50);
         name += comment;
       }
 
       name += ` (R: ${thread.replies}, I: ${thread.images})`;
 
-      name = name.slice(0, 100);
-
       return { name, value: `no:${thread.no}` };
     }),
   );
+
+  options.forEach(option => {
+    option.name = option.name.slice(0, 100);
+    option.value = option.value.slice(0, 100);
+  });
 
   await interaction.respond(options);
 }
@@ -398,7 +407,7 @@ function createPostContent(
   let heading = `/${board}/`;
 
   if (!thread.sub && thread.com) {
-    thread.sub = fixHTML(removeHTML(thread.com)).split("\n")[0].slice(0, 50);
+    thread.sub = truncateString(fixHTML(removeHTML(thread.com)).split("\n")[0], 50);
   }
 
   if (thread.sub) {
@@ -432,7 +441,8 @@ function createPostContent(
   const totalLength = heading.length + description.length + footer.length;
 
   if (totalLength > 2000) {
-    description = description.slice(0, 2000 - (heading.length + footer.length) - 6) + "...";
+    // Subtract 3 for the newlines when
+    description = truncateString(description, 2000 - (heading.length + footer.length) - 3);
   }
 
   content = heading;

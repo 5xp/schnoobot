@@ -11,3 +11,10 @@ export function simpleEmbed(message: string): EmbedBuilder {
 export function errorMessage(error: string) {
   return { embeds: [errorEmbed(error)], ephemeral: true };
 }
+
+export function truncateString(input: string, maxLength: number): string {
+  if (input.length <= maxLength) {
+    return input;
+  }
+  return input.substring(0, maxLength - 3) + "...";
+}
