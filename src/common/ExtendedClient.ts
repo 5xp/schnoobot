@@ -2,6 +2,8 @@ import {
   Client,
   ClientOptions,
   Collection,
+  Emoji,
+  formatEmoji,
   REST,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
   Routes,
@@ -11,6 +13,9 @@ import fs from "fs";
 import path from "path";
 import Command from "./Command";
 import EconomyManager from "./EconomyManager";
+import { RawEmojiData } from "discord.js/typings/rawDataTypes";
+
+export const applicationEmojis = new Collection<string, string>();
 
 export default class ExtendedClient extends Client {
   commands: Collection<string, Command> = new Collection();
@@ -49,6 +54,30 @@ export default class ExtendedClient extends Client {
     }
 
     return commands;
+  }
+
+  async loadEmojis(client: ExtendedClient): Promise<void> {
+    // Temporary hack for loading application emojis
+    const rest = new REST({ version: "10" }).setToken(ENV.DISCORD_TOKEN);
+
+    if (!client.application) {
+      console.error("Client application not found.");
+      return;
+    }
+
+    const emojiData = (await rest.get(`/applications/${client.application.id}/emojis`)) as { items: RawEmojiData[] };
+
+    if (!emojiData) {
+      console.error("Emojis not found.");
+      return;
+    }
+
+    const emojis = emojiData.items;
+
+    emojis.forEach(emoji => {
+      if (!emoji.name || !emoji.id) return;
+      applicationEmojis.set(emoji.name, formatEmoji(emoji.id));
+    });
   }
 
   static async deployCommands(options: CommandDeployOptions): Promise<string> {

@@ -1,52 +1,60 @@
-import { ColorResolvable, EmbedBuilder, hyperlink } from "discord.js";
+import { ColorResolvable, EmbedBuilder, hideLinkEmbed, hyperlink } from "discord.js";
 import { Payload } from "youtube-dl-exec";
 import numeral from "numeral";
+import ExtendedClient, { applicationEmojis } from "@common/ExtendedClient";
 
-interface EmbedStrategy {
-  (jsonDump: Payload): EmbedBuilder;
+interface MessageStrategy {
+  (options: StrategyOptions): string;
 }
 
-const embedStrategies: Record<string, EmbedStrategy> = {
-  tiktok: (jsonDump: Payload) => {
-    return createEmbed(`TikTok @${jsonDump.uploader}`, jsonDump.webpage_url, "#040404", getDetails(jsonDump));
-  },
-  reddit: (jsonDump: Payload) => {
-    const details = getDetails(jsonDump, "", "⬆️", "💬", "");
-    return createEmbed(
-      `r/${jsonDump.channel_id} u/${jsonDump.uploader}`,
-      jsonDump.webpage_url,
-      "#FF4500",
-      [jsonDump.title, details].join(" "),
-    );
-  },
-  youtube: (jsonDump: Payload) => {
-    return createEmbed(
-      `YouTube - ${jsonDump.channel}`,
-      jsonDump.webpage_url,
-      "#FF0000",
-      [jsonDump.title, getDetails(jsonDump)].join(" "),
-    );
-  },
-  twitter: (jsonDump: Payload) => {
-    return createEmbed(`Twitter @${jsonDump.uploader_id}`, jsonDump.webpage_url, "#1DA1F2", getDetails(jsonDump));
-  },
-  instagram: (jsonDump: Payload) => {
-    return createEmbed(`Instagram @${jsonDump.channel}`, jsonDump.webpage_url, "#E1306C", getDetails(jsonDump));
-  },
-  default: (jsonDump: Payload) => {
-    let title = jsonDump.extractor;
+type StrategyOptions = { jsonDump: Payload; useEmoji: boolean };
 
-    if (["generic", "html5"].includes(title) && jsonDump.webpage_url_domain) {
-      title = jsonDump.webpage_url_domain;
+const messageStrategies: Record<string, MessageStrategy> = {
+  tiktok: (options: StrategyOptions) => {
+    const label = `${options.useEmoji ? applicationEmojis.get("tiktok") : "TikTok"} **\`@${
+      options.jsonDump.uploader
+    }\`**`;
+    return createMessage(label, options.jsonDump.webpage_url, getDetails(options.jsonDump));
+  },
+  reddit: (options: StrategyOptions) => {
+    const details = getDetails(options.jsonDump, "", "⬆️", "💬", "");
+    const label = `${options.useEmoji ? applicationEmojis.get("reddit") : "Reddit"} r/${
+      options.jsonDump.channel_id
+    } **\`u/${options.jsonDump.uploader}\`**`;
+    return createMessage(label, options.jsonDump.webpage_url, details);
+  },
+  youtube: (options: StrategyOptions) => {
+    const label = `${options.useEmoji ? applicationEmojis.get("youtube") : "YouTube"} **\`${
+      options.jsonDump.channel
+    }\`**`;
+    return createMessage(label, options.jsonDump.webpage_url, getDetails(options.jsonDump));
+  },
+  twitter: (options: StrategyOptions) => {
+    const label = `${options.useEmoji ? applicationEmojis.get("twitter") : "Twitter"} **\`@${
+      options.jsonDump.uploader_id
+    }\`**`;
+    return createMessage(label, options.jsonDump.webpage_url, getDetails(options.jsonDump));
+  },
+  instagram: (options: StrategyOptions) => {
+    const label = `${options.useEmoji ? applicationEmojis.get("instagram") : "Instagram"} **\`@${
+      options.jsonDump.channel
+    }\`**`;
+    return createMessage(label, options.jsonDump.webpage_url, getDetails(options.jsonDump));
+  },
+  default: (options: StrategyOptions) => {
+    let title = options.jsonDump.extractor;
+
+    if (["generic", "html5"].includes(title) && options.jsonDump.webpage_url_domain) {
+      title = options.jsonDump.webpage_url_domain;
     }
 
-    if (jsonDump.uploader) {
-      title += ` @${jsonDump.uploader}`;
-    } else if (jsonDump.channel) {
-      title += ` @${jsonDump.channel}`;
+    if (options.jsonDump.uploader) {
+      title += ` @${options.jsonDump.uploader}`;
+    } else if (options.jsonDump.channel) {
+      title += ` @${options.jsonDump.channel}`;
     }
 
-    return createEmbed(title.trim(), jsonDump.webpage_url, null, getDetails(jsonDump));
+    return createMessage(title.trim(), options.jsonDump.webpage_url, getDetails(options.jsonDump));
   },
 };
 
@@ -60,16 +68,16 @@ function getDetails(
 ): string {
   let details = "";
 
-  if (jsonDump.view_count ?? false) {
+  if (jsonDump.view_count) {
     details += `${viewEmoji} ${format(jsonDump.view_count)} `;
   }
-  if (jsonDump.like_count ?? false) {
+  if (jsonDump.like_count) {
     details += `${likeEmoji} ${format(jsonDump.like_count)} `;
   }
-  if (jsonDump.comment_count ?? false) {
+  if (jsonDump.comment_count) {
     details += `${commentEmoji} ${format(jsonDump.comment_count)} `;
   }
-  if (jsonDump.repost_count ?? false) {
+  if (jsonDump.repost_count) {
     details += `${repostEmoji} ${format(jsonDump.repost_count)} `;
   }
 
@@ -94,7 +102,17 @@ function createEmbed(label: string, url: string, color: ColorResolvable | null, 
   return embed;
 }
 
-export function getEmbed(jsonDump: Payload): EmbedBuilder {
-  const embedStrategy = embedStrategies[jsonDump.extractor.toLowerCase()] ?? embedStrategies["default"];
-  return embedStrategy(jsonDump);
+function createMessage(label: string, url: string, secondaryLabel: string): string {
+  let message = `-# ${hyperlink(label, hideLinkEmbed(url))}`;
+
+  if (secondaryLabel) {
+    message += `\n-# ${secondaryLabel}`;
+  }
+
+  return message;
+}
+
+export function getMessage(options: StrategyOptions): string {
+  const messageStrategy = messageStrategies[options.jsonDump.extractor.toLowerCase()] ?? messageStrategies["default"];
+  return messageStrategy(options);
 }

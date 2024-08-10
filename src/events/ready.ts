@@ -4,8 +4,9 @@ import { Events } from "discord.js";
 export default {
   name: Events.ClientReady,
   once: true,
-  execute(client: ExtendedClient) {
+  async execute(client: ExtendedClient) {
     console.log(`Logged in as ${client.user?.tag}!`);
-    client.application?.fetch();
+    await client.application?.fetch();
+    await client.loadEmojis(client);
   },
 };

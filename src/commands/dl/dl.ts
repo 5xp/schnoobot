@@ -10,14 +10,13 @@ import {
   GuildPremiumTier,
   MessageContextMenuCommandInteraction,
   SlashCommandBuilder,
-  bold,
   codeBlock,
   hideLinkEmbed,
   hyperlink,
 } from "discord.js";
 import { Readable } from "stream";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
-import { getEmbed } from "./site-embeds";
+import { getMessage } from "./site-embeds";
 
 export const urlRegex =
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -264,21 +263,19 @@ async function createReply({
     });
   }
 
-  const embed = getEmbed(jsonDump);
-
   if (interaction.isContextMenuCommand() && !ephemeral) {
+    const message = getMessage({ jsonDump, useEmoji: false });
     await interaction.targetMessage.reply({
-      content: bold(`Requested by ${interaction.user}`),
-      embeds: [embed],
+      content: "" + "\n" + message,
       files: [attachment],
       allowedMentions: { repliedUser: false },
     });
 
     interaction.deleteReply();
   } else {
+    const message = getMessage({ jsonDump, useEmoji: true });
     await interaction.editReply({
-      content: "",
-      embeds: [embed],
+      content: message,
       files: [attachment],
     });
   }
