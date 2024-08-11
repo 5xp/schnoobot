@@ -1,4 +1,4 @@
-import ExtendedClient from "@common/ExtendedClient";
+import ExtendedClient, { applicationEmojis } from "@common/ExtendedClient";
 import { errorMessage, truncateString } from "@common/reply-utils";
 import {
   ActionRowBuilder,
@@ -11,6 +11,7 @@ import {
   ChatInputCommandInteraction,
   hideLinkEmbed,
   hyperlink,
+  inlineCode,
   Interaction,
   MessageComponentInteraction,
   time,
@@ -26,6 +27,9 @@ import {
   ThreadPost,
   threadSchema,
 } from "./4chan.schema";
+
+const maxMessageCommentFallbackLength = 150;
+const maxAutocompleteCommentFallbackLength = 50;
 
 const rerollKeepBoardButton = new ButtonBuilder()
   .setLabel("Reroll")
@@ -145,7 +149,7 @@ async function autocompleteThread(
         name += fixHTML(removeHTML(thread.sub));
       } else if (thread.com) {
         let comment = fixHTML(removeHTML(thread.com)).split("\n")[0];
-        comment = truncateString(comment, 50);
+        comment = truncateString(comment, maxAutocompleteCommentFallbackLength);
         name += comment;
       }
 
@@ -264,13 +268,17 @@ async function run(options: RunOptions): Promise<RunResult> {
 
   const thread = getRandomThread(threads, filterType);
 
-  const { post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, filterType);
+  const { posts, post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, filterType);
 
   const content = createPostContent(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
-  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(rerollKeepBoardButton);
+  const actionRow = new ActionRowBuilder<ButtonBuilder>();
 
-  if (threads.length > 1 || threadOverride) {
+  if (posts.length > 1 || threads.length > 1) {
+    actionRow.addComponents(rerollKeepBoardButton);
+  }
+
+  if ((posts.length > 1 && threads.length > 1) || threadOverride) {
     actionRow.addComponents(rerollKeepThreadButton);
   }
 
@@ -278,7 +286,7 @@ async function run(options: RunOptions): Promise<RunResult> {
     selectedPost: { board, threadNo: thread.no, postNo: post?.no },
     messageOptions: {
       content,
-      components: [actionRow],
+      ...(actionRow.components.length > 0 ? { components: [actionRow] } : {}),
     },
   };
 }
@@ -389,7 +397,7 @@ async function getRandomPost(board: string, thread: CatalogThread, filterType: T
 
   const post = posts.length === 0 ? undefined : posts[Math.floor(Math.random() * posts.length)];
 
-  return { post, replyCount, imageCount, videoCount };
+  return { posts, post, replyCount, imageCount, videoCount };
 }
 
 function createPostContent(
@@ -404,10 +412,10 @@ function createPostContent(
   let content = "",
     description = "";
 
-  let heading = `/${board}/`;
+  let heading = `${applicationEmojis.get("4chan")} /${board}/`;
 
   if (!thread.sub && thread.com) {
-    thread.sub = truncateString(fixHTML(removeHTML(thread.com)).split("\n")[0], 50);
+    thread.sub = truncateString(fixHTML(removeHTML(thread.com)).split("\n")[0], maxMessageCommentFallbackLength);
   }
 
   if (thread.sub) {
@@ -419,10 +427,11 @@ function createPostContent(
     heading += ` ${time(post.time, "R")}`;
   } else {
     heading = hyperlink(heading, `<https://boards.4chan.org/${board}/thread/${thread.no}>`);
+    description = bold("No posts matching the criteria were found.");
   }
 
   if (post?.filename) {
-    heading += ` ${hyperlink("File", `https://i.4cdn.org/${board}/${post.tim}${post.ext}`)}`;
+    heading += ` ${hyperlink(inlineCode("📂File"), `https://i.4cdn.org/${board}/${post.tim}${post.ext}`)}`;
   }
 
   if (post?.com) {
