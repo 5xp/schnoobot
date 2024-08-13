@@ -45,15 +45,6 @@ const rerollKeepThreadButton = new ButtonBuilder()
 const catalogCache = new NodeCache({ stdTTL: 60 * 60 * 1000, checkperiod: 60 });
 const threadCache = new NodeCache({ stdTTL: 10 * 60 * 1000, checkperiod: 30 });
 
-type RunOptions = {
-  board: string;
-  threadQuery: string | null;
-  filterType: ThreadFilterType;
-  nsfwAllowed: boolean;
-  numRerolls: number;
-  threadOverride?: number;
-};
-
 export async function autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
   const focusedOption = interaction.options.getFocused(true);
   const nsfwAllowed = inNsfwChannel(interaction);
@@ -177,12 +168,17 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
   let numRerolls = 0;
 
+  let excludeThreads: number[] = [];
+  let seenPostsCount: Record<number, number> = {};
+
   const runResult = await run({
     board,
     threadQuery,
     filterType,
     nsfwAllowed,
     numRerolls,
+    excludeThreads,
+    seenPostsCount,
   }).catch(async error => {
     if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
       await interaction.reply(errorMessage(error.message));
@@ -209,6 +205,8 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
       filterType,
       nsfwAllowed,
       numRerolls,
+      excludeThreads,
+      seenPostsCount,
       ...(i.customId === "reroll-thread" ? { threadOverride: lastThreadNo } : {}),
     }).catch(async error => {
       if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
@@ -240,13 +238,25 @@ type SelectedPost = {
   postNo?: number;
 };
 
+type RunOptions = {
+  board: string;
+  threadQuery: string | null;
+  filterType: ThreadFilterType;
+  nsfwAllowed: boolean;
+  numRerolls: number;
+  threadOverride?: number;
+  excludeThreads: number[];
+  seenPostsCount: Record<number, number>;
+};
+
 type RunResult = {
   selectedPost: SelectedPost;
   messageOptions: BaseMessageOptions;
 };
 
 async function run(options: RunOptions): Promise<RunResult> {
-  const { board, threadQuery, filterType, nsfwAllowed, threadOverride, numRerolls } = options;
+  const { board, threadQuery, filterType, nsfwAllowed, threadOverride, numRerolls, excludeThreads, seenPostsCount } =
+    options;
 
   const b = boards.find(b => b.value === board);
 
@@ -260,7 +270,7 @@ async function run(options: RunOptions): Promise<RunResult> {
 
   let threads = await fetchCatalog(board);
 
-  threads = filterThreads(threads, threadQuery, threadOverride ?? null);
+  threads = filterThreads(threads, threadQuery, threadOverride ?? null, excludeThreads);
 
   if (threads.length === 0) {
     throw new Error("No threads found with the given criteria.");
@@ -268,7 +278,18 @@ async function run(options: RunOptions): Promise<RunResult> {
 
   const thread = getRandomThread(threads, filterType);
 
-  const { posts, post, replyCount, imageCount, videoCount } = await getRandomPost(board, thread, filterType);
+  const { posts, post, replyCount, imageCount, videoCount } = await getRandomPost(
+    board,
+    thread,
+    filterType,
+    seenPostsCount,
+  );
+
+  if (!post) {
+    excludeThreads.push(thread.no);
+  } else {
+    seenPostsCount[post.no] = (seenPostsCount[post.no] || 0) + 1;
+  }
 
   const content = createPostContent(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
@@ -321,6 +342,7 @@ function filterThreads(
   threads: CatalogThread[],
   threadQuery: string | null,
   threadOverride: number | null,
+  excludeThreads: number[],
 ): CatalogThread[] {
   if (threadOverride) {
     return threads.filter(thread => thread.no === threadOverride);
@@ -329,6 +351,8 @@ function filterThreads(
   if (!threadQuery) {
     return threads;
   }
+
+  threads = threads.filter(thread => !excludeThreads.includes(thread.no));
 
   if (threadQuery.startsWith("no:")) {
     const no = Number(threadQuery.slice(3));
@@ -373,7 +397,12 @@ function getRandomThread(threads: CatalogThread[], filterType: ThreadFilterType)
   return threads[threads.length - 1];
 }
 
-async function getRandomPost(board: string, thread: CatalogThread, filterType: ThreadFilterType) {
+async function getRandomPost(
+  board: string,
+  thread: CatalogThread,
+  filterType: ThreadFilterType,
+  seenPosts: Record<number, number>,
+) {
   let posts = await fetchThread(board, thread.no);
 
   if (posts[0].filename) {
@@ -395,9 +424,33 @@ async function getRandomPost(board: string, thread: CatalogThread, filterType: T
     posts = videoPosts;
   }
 
-  const post = posts.length === 0 ? undefined : posts[Math.floor(Math.random() * posts.length)];
+  const post = selectPost(posts, seenPosts);
 
   return { posts, post, replyCount, imageCount, videoCount };
+}
+
+function selectPost(posts: ThreadPost[], seenPosts: Record<number, number>): ThreadPost {
+  const weights: Record<number, number> = {};
+
+  posts.forEach(post => {
+    const weight = seenPosts[post.no] || 0;
+    weights[post.no] = (1 / (weight + 1)) ** 2;
+  });
+
+  const totalWeight = Object.values(weights).reduce((acc, weight) => acc + weight, 0);
+  const randomWeight = Math.random() * totalWeight;
+
+  let weightSum = 0;
+
+  for (const post of posts) {
+    weightSum += weights[post.no];
+
+    if (weightSum >= randomWeight) {
+      return post;
+    }
+  }
+
+  return posts[posts.length - 1];
 }
 
 function createPostContent(
