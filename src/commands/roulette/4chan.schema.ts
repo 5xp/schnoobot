@@ -19,8 +19,8 @@ export const catalogSchema = z.array(
   }),
 );
 
-export type CatalogAPIResponse = z.infer<typeof catalogSchema>;
-export type CatalogPage = CatalogAPIResponse[number];
+export type CatalogApiResponse = z.infer<typeof catalogSchema>;
+export type CatalogPage = CatalogApiResponse[number];
 export type CatalogThread = CatalogPage["threads"][number];
 
 export const threadSchema = z.object({
@@ -37,5 +37,5 @@ export const threadSchema = z.object({
   ),
 });
 
-export type ThreadAPIResponse = z.infer<typeof threadSchema>;
-export type ThreadPost = ThreadAPIResponse["posts"][number];
+export type ThreadApiResponse = z.infer<typeof threadSchema>;
+export type ThreadPost = ThreadApiResponse["posts"][number];

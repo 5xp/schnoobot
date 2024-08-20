@@ -30,34 +30,54 @@ export default {
             )
             .setRequired(false),
         ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName("reddit")
+        .setDescription("Get a random post from a subreddit or user")
+        .addStringOption(option =>
+          option
+            .setName("query")
+            .setDescription(
+              "Fetch a random post. Supports subreddits, users, & multi-reddits. Ex: 'memes u/user u/user/m/multi'",
+            )
+            .setRequired(true),
+        )
+        .addStringOption(option =>
+          option
+            .setName("sort")
+            .setDescription("The sorting to use")
+            .addChoices(
+              { name: "Hot (Default)", value: "hot" },
+              { name: "Top (All Time)", value: "top" },
+              { name: "Top (Year)", value: "top-year" },
+              { name: "Top (Month)", value: "top-month" },
+            )
+            .setRequired(false),
+        )
+        .addStringOption(option =>
+          option
+            .setName("type")
+            .setDescription("The type of post to get")
+            .addChoices(
+              { name: "All", value: "all" },
+              { name: "Images + Videos (Default)", value: "media" },
+              { name: "Images", value: "image" },
+              { name: "Videos", value: "video" },
+            )
+            .setRequired(false),
+        )
+        .addStringOption(option =>
+          option
+            .setName("nsfw")
+            .setDescription("If the channel is marked as NSFW, optionally include NSFW posts")
+            .addChoices(
+              { name: "All (Default)", value: "all" },
+              { name: "None", value: "none" },
+              { name: "Only", value: "only" },
+            ),
+        ),
     ),
-  // .addSubcommand(subcommand =>
-  //   subcommand
-  //     .setName("reddit")
-  //     .setDescription("Get a random post from a subreddit or user")
-  //     .addStringOption(option =>
-  //       option
-  //         .setName("query")
-  //         .setDescription("The subreddit or user to get a post from. If a user, format your query as u/username")
-  //         .setRequired(true),
-  //     )
-  //     .addStringOption(option =>
-  //       option
-  //         .setName("timeframe")
-  //         .setDescription("The timeframe to get the post from")
-  //         .addChoices(
-  //           { name: "All", value: "all" },
-  //           { name: "Year", value: "year" },
-  //           { name: "Month", value: "month" },
-  //           { name: "Week", value: "week" },
-  //           { name: "Day", value: "day" },
-  //         )
-  //         .setRequired(false),
-  //     )
-  //     .addBooleanOption(option =>
-  //       option.setName("exclude-text").setDescription("Exclude text posts").setRequired(false),
-  //     ),
-  // )
   // .addSubcommand(subcommand =>
   //   subcommand
   //     .setName("twitter")
@@ -93,6 +113,8 @@ export default {
     const commandPath = `./${subcommand}`;
     const commandModule = await import(commandPath);
     const execute = commandModule.default;
+
+    console.log(`Executing ${subcommand} command`);
 
     execute(interaction, client);
   },
