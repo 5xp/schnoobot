@@ -42,8 +42,8 @@ const rerollKeepThreadButton = new ButtonBuilder()
   .setCustomId("reroll-thread")
   .setEmoji("🔀");
 
-const catalogCache = new NodeCache({ stdTTL: 60 * 60 * 1000, checkperiod: 60 });
-const threadCache = new NodeCache({ stdTTL: 10 * 60 * 1000, checkperiod: 30 });
+const catalogCache = new NodeCache({ stdTTL: 60 * 60, checkperiod: 60 });
+const threadCache = new NodeCache({ stdTTL: 10 * 60, checkperiod: 30 });
 
 export async function autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
   const focusedOption = interaction.options.getFocused(true);
