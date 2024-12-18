@@ -498,7 +498,7 @@ function createPostContent(
     description = `> ${description}`;
   }
 
-  const footer = `-# Reroll #${numRerolls} • \\💬${replyCount}\\🖼️${imageCount}\\🎥${videoCount}`;
+  const footer = `-# Reroll #${numRerolls} • 💬${replyCount}🖼️${imageCount}🎞️${videoCount}`;
 
   const totalLength = heading.length + description.length + footer.length;
 
