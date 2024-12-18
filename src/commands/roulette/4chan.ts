@@ -144,7 +144,7 @@ async function autocompleteThread(
         name += comment;
       }
 
-      name += ` (R: ${thread.replies}, I: ${thread.images})`;
+      name += ` (💬 ${thread.replies} 📸 ${thread.images})`;
 
       return { name, value: `no:${thread.no}` };
     }),
@@ -498,12 +498,11 @@ function createPostContent(
     description = `> ${description}`;
   }
 
-  const footer = `-# Reroll #${numRerolls} • ${replyCount}R/${imageCount}I/${videoCount}V`;
+  const footer = `-# Reroll #${numRerolls} • \\💬${replyCount}\\🖼️${imageCount}\\🎥${videoCount}`;
 
   const totalLength = heading.length + description.length + footer.length;
 
   if (totalLength > 2000) {
-    // Subtract 3 for the newlines when
     description = truncateString(description, 2000 - (heading.length + footer.length) - 3);
   }
 
