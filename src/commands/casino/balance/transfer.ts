@@ -1,13 +1,19 @@
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
+import { getBalance, transferBalance } from "@db/services";
 import { ChatInputCommandInteraction, EmbedBuilder, bold } from "discord.js";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const amountString = interaction.options.getString("amount", true);
   const recipient = interaction.options.getUser("recipient", true);
 
-  const balance = client.economy.getBalance(interaction.user.id);
+  if (interaction.user.id === recipient.id) {
+    interaction.reply(errorMessage("You can't transfer to yourself!"));
+    return;
+  }
+
+  const balance = await getBalance(interaction.user.id);
   const amount = new Currency(amountString, balance);
 
   if (amount.validity.code !== "valid") {
@@ -15,11 +21,10 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
     return;
   }
 
-  const { userBalance, recipientBalance } = await client.economy.transferBalance(
-    interaction.user.id,
-    amount.value,
-    recipient.id,
-  );
+  const {
+    user: { balance: userBalance },
+    target: { balance: targetBalance },
+  } = await transferBalance(interaction.user.id, recipient.id, amount.value);
 
   const embed = new EmbedBuilder()
     .setTitle(`${interaction.user.username}'s transfer to ${recipient.username}`)
@@ -27,7 +32,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
     .addFields(
       { name: bold("Transfer Amount"), value: amount.formatted, inline: true },
       { name: bold("New Balance"), value: Currency.format(userBalance), inline: true },
-      { name: bold(`${recipient.username}'s Balance`), value: Currency.format(recipientBalance), inline: true },
+      { name: bold(`${recipient.username}'s Balance`), value: Currency.format(targetBalance), inline: true },
     );
 
   interaction.reply({ embeds: [embed] });

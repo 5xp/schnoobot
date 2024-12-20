@@ -2,7 +2,6 @@ import {
   Client,
   ClientOptions,
   Collection,
-  Emoji,
   formatEmoji,
   REST,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
@@ -12,14 +11,12 @@ import { ENV } from "env";
 import fs from "fs";
 import path from "path";
 import Command from "./Command";
-import EconomyManager from "./EconomyManager";
 import { RawEmojiData } from "discord.js/typings/rawDataTypes";
 
 export const applicationEmojis = new Collection<string, string>();
 
 export default class ExtendedClient extends Client {
   commands: Collection<string, Command> = new Collection();
-  economy: EconomyManager = new EconomyManager();
 
   constructor(options: ClientOptions) {
     super(options);

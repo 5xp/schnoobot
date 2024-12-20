@@ -1,6 +1,7 @@
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
+import * as sdb from "@db/services";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -397,7 +398,7 @@ async function run(
   wagerInput: string,
   originalWager?: Currency,
 ): Promise<void> {
-  let balance = client.economy.getBalance(interaction.user.id);
+  let balance = await sdb.getBalance(interaction.user.id);
   const wager = new Currency(wagerInput, balance);
   originalWager ??= wager;
 
@@ -427,8 +428,8 @@ async function run(
     const netGain = grid.gameState === "win" ? grid.currentProfit(wager.value) : -wager.value;
     balance += netGain;
 
-    client.economy.addBalance(interaction.user.id, netGain);
-    client.economy.addLog(interaction.user.id, "mines", netGain);
+    sdb.addBalance(interaction.user.id, netGain);
+    sdb.addLog(interaction.user.id, "mines", netGain);
 
     const optionInteraction = await optionResponse.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
 
