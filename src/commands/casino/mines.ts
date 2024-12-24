@@ -1,3 +1,4 @@
+import CasinoLogger from "@common/CasinoLogger";
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
@@ -9,6 +10,7 @@ import {
   ChatInputCommandInteraction,
   ColorResolvable,
   EmbedBuilder,
+  Message,
   MessageComponentInteraction,
   User,
   bold,
@@ -387,16 +389,19 @@ type CreateEmbedOptions = {
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const wagerInput = interaction.options.getString("wager", true);
   const numMines = interaction.options.getNumber("mines", true);
+  const logger = new CasinoLogger();
 
-  run(interaction, client, numMines, wagerInput);
+  run(interaction, client, logger, numMines, wagerInput);
 }
 
 async function run(
   interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
+  logger: CasinoLogger,
   numMines: number,
   wagerInput: string,
   originalWager?: Currency,
+  optionResponse: Message | null = null,
 ): Promise<void> {
   let balance = await sdb.getBalance(interaction.user.id);
   const wager = new Currency(wagerInput, balance);
@@ -409,15 +414,23 @@ async function run(
 
   const grid = new MineGrid(gridSize, numMines);
   const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-  const gridResponse = await interaction.reply({ embeds: [embed], components: grid.cellActionRows, fetchReply: true });
-  const optionResponse = await interaction.followUp({
-    components: grid.createOptionActionRow(),
-    fetchReply: true,
-  });
+
+  // const gridResponse = await interaction.reply({ embeds: [embed], components: grid.cellActionRows, fetchReply: true });
+  const gridResponse = await (!interaction.replied
+    ? interaction.reply({ embeds: [embed], components: grid.cellActionRows, fetchReply: true })
+    : interaction.editReply({ embeds: [logger.embed, embed], components: grid.cellActionRows }));
+
+  if (!optionResponse) {
+    optionResponse = await interaction.followUp({
+      components: grid.createOptionActionRow(),
+    });
+  } else {
+    optionResponse.edit({ components: grid.createOptionActionRow() }).catch(() => null);
+  }
 
   const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
   const time = 3_600_000;
-  const gridComponentCollector = gridResponse.createMessageComponentCollector({ filter, time });
+  const gridComponentCollector = gridResponse.createMessageComponentCollector({ filter, idle: time });
   const cashOutCollector = optionResponse.createMessageComponentCollector({ filter, time, max: 1 });
 
   async function handleGameOver() {
@@ -430,12 +443,14 @@ async function run(
 
     sdb.addBalance(interaction.user.id, netGain);
     sdb.addLog(interaction.user.id, "mines", netGain);
+    logger.log(grid.gameState === "win", netGain, balance);
 
-    const optionInteraction = await optionResponse.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
+    const optionInteraction = await optionResponse!.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
 
     let selected: ButtonSelection = "none";
 
     if (optionInteraction) {
+      optionInteraction.deferUpdate();
       selected = optionInteraction.customId as ButtonSelection;
 
       let newWager = wager;
@@ -445,15 +460,10 @@ async function run(
         originalWager = newWager;
       }
 
-      run(optionInteraction, client, numMines, newWager.input, originalWager);
+      run(interaction, client, logger, numMines, newWager.input, originalWager, optionResponse);
+    } else {
+      optionResponse?.delete().catch(() => null);
     }
-
-    interaction
-      .editReply({
-        message: optionResponse,
-        components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager, selected }),
-      })
-      .catch(() => null);
   }
 
   gridComponentCollector.on("collect", async (i: MessageComponentInteraction) => {
@@ -463,8 +473,12 @@ async function run(
     cashOutCollector.resetTimer();
     originalWager = <Currency>originalWager;
 
-    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    i.update({ embeds: [embed], components: grid.cellActionRows }).catch(() => null);
+    const embeds = [grid.createEmbed({ user: interaction.user, wager, balance })];
+    if (logger.logs.length) {
+      embeds.unshift(logger.embed);
+    }
+
+    i.update({ embeds, components: grid.cellActionRows }).catch(() => null);
 
     if (grid.gameOver) {
       interaction
@@ -482,10 +496,12 @@ async function run(
     grid.cashOut();
     originalWager = <Currency>originalWager;
 
-    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    interaction
-      .editReply({ message: gridResponse, embeds: [embed], components: grid.cellActionRows })
-      .catch(() => null);
+    const embeds = [grid.createEmbed({ user: interaction.user, wager, balance })];
+    if (logger.logs.length) {
+      embeds.unshift(logger.embed);
+    }
+
+    interaction.editReply({ message: gridResponse, embeds, components: grid.cellActionRows }).catch(() => null);
 
     i.update({
       components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),
@@ -495,13 +511,17 @@ async function run(
   });
 
   gridComponentCollector.on("end", async (_, reason) => {
-    if (reason !== "time") return;
+    if (reason !== "idle") return;
     originalWager = <Currency>originalWager;
 
     grid.cashOut();
 
-    const embed = grid.createEmbed({ user: interaction.user, wager, balance });
-    interaction.editReply({ message: gridResponse, embeds: [embed], components: grid.cellActionRows });
+    const embeds = [grid.createEmbed({ user: interaction.user, wager, balance })];
+    if (logger.logs.length) {
+      embeds.unshift(logger.embed);
+    }
+
+    interaction.editReply({ message: gridResponse, embeds, components: grid.cellActionRows });
     interaction.editReply({
       message: optionResponse,
       components: grid.createOptionActionRow({ user: interaction.user, wager, balance, originalWager }),

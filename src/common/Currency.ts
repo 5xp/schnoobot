@@ -6,7 +6,7 @@ export default class Currency {
   allIn: boolean;
   balance = 0;
 
-  constructor(input: string | number, balance: number | undefined) {
+  constructor(input: string | number, balance?: number) {
     this.input = input.toString();
     this.allIn = String(this.input).toLowerCase() === "all";
 
@@ -47,8 +47,8 @@ export default class Currency {
     return this.value === value;
   }
 
-  static format(inputValue: string | number): string {
-    return numeral(inputValue).format();
+  static format(inputValue: string | number, format?: string): string {
+    return format ? numeral(inputValue).format(format) : numeral(inputValue).format();
   }
 }
 

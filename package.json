@@ -9,9 +9,10 @@
     "build": "tsc",
     "dev": "ts-node --transpile-only -r tsconfig-paths/register src/bot.ts",
     "start": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register .",
-    "deploy": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js",
+    "deploy:guild": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js",
+    "deploy:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js --global",
     "clear": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js",
-    "init-db": "npx drizzle-kit push"
+    "drizzle:push": "npx drizzle-kit push"
   },
   "keywords": [],
   "author": "",

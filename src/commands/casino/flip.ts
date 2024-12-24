@@ -13,17 +13,20 @@ import {
   bold,
 } from "discord.js";
 import { z } from "zod";
+import CasinoLogger from "@common/CasinoLogger";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const wagerInput = interaction.options.getString("wager", true);
-  const choice = FlipChoiceSchema.parse(interaction.options.getString("choice", true));
+  const choice = flipChoiceSchema.parse(interaction.options.getString("choice", true));
+  const logger = new CasinoLogger();
 
-  run(interaction, client, choice, wagerInput);
+  run(interaction, client, logger, choice, wagerInput);
 }
 
 async function run(
   interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
+  logger: CasinoLogger,
   choice: FlipChoice,
   wagerInput: string,
   originalWager?: Currency,
@@ -43,13 +46,19 @@ async function run(
 
   sdb.addBalance(interaction.user.id, netGain);
   sdb.addLog(interaction.user.id, "flip", netGain);
+  logger.log(win, netGain, balance);
 
   const components = createActionRow({ wager, originalWager, balance });
   const embed = createEmbed({ user: interaction.user, choice, result, netGain, balance });
 
-  const response = await interaction.reply({ embeds: [embed], components, fetchReply: true });
+  const isOriginalInteraction = interaction.isChatInputCommand();
+
+  const response = await (isOriginalInteraction
+    ? interaction.reply({ embeds: [embed], components })
+    : interaction.update({ embeds: [logger.embed, embed], components }));
+
   const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
-  const componentInteraction = await response.awaitMessageComponent({ filter, time: 15_000 }).catch(() => null);
+  const componentInteraction = await response.awaitMessageComponent({ filter, time: 30_000 }).catch(() => null);
 
   let selected: ButtonSelection = "none";
 
@@ -67,19 +76,15 @@ async function run(
       originalWager = newWager;
     }
 
-    run(componentInteraction, client, choice, newWager.input, originalWager);
+    run(componentInteraction, client, logger, choice, newWager.input, originalWager);
+  } else {
+    interaction.editReply({ components: [] });
   }
-
-  interaction
-    .editReply({
-      components: createActionRow({ selected, wager, originalWager }),
-    })
-    .catch(() => null);
 }
 
-const FlipChoiceSchema = z.enum(["heads", "tails"]);
+const flipChoiceSchema = z.enum(["heads", "tails"]);
 
-type FlipChoice = z.infer<typeof FlipChoiceSchema>;
+type FlipChoice = z.infer<typeof flipChoiceSchema>;
 
 type ButtonSelection = "playAgain" | "double" | "originalWager" | "none";
 
