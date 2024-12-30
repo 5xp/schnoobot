@@ -7,6 +7,7 @@ interface MessageStrategy {
   (options: StrategyOptions): string;
 }
 
+// We only don't use emoji when replying to a message because emojis only seem to work in webhooks
 type StrategyOptions = { jsonDump: Payload; useEmoji: boolean };
 
 const messageStrategies: Record<string, MessageStrategy> = {

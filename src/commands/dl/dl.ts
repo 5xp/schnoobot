@@ -10,13 +10,15 @@ import {
   GuildPremiumTier,
   MessageContextMenuCommandInteraction,
   SlashCommandBuilder,
+  bold,
   codeBlock,
   hideLinkEmbed,
   hyperlink,
 } from "discord.js";
-import { Readable } from "stream";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 import { getMessage } from "./site-embeds";
+import { unlink, readFile } from "fs/promises";
+import { ENV } from "env";
 
 export const urlRegex =
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -45,38 +47,62 @@ export default {
   },
 };
 
-export async function run({ interaction, url, ephemeral, jsonOnly }: DlRunOptions): Promise<void> {
-  const isContextMenuCommand = interaction.isContextMenuCommand();
+type ValidInteraction = ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
 
+type RunOptions = {
+  interaction: ValidInteraction;
+  url: string;
+  ephemeral: boolean;
+  jsonOnly?: boolean;
+};
+
+export async function run({ interaction, url, ephemeral, jsonOnly = false }: RunOptions): Promise<void> {
   if (!interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({ ephemeral: ephemeral || isContextMenuCommand });
+    await interaction.deferReply({ ephemeral: ephemeral || interaction.isContextMenuCommand() });
   }
 
   const uploadLimit = getUploadLimit(interaction.guild);
 
-  const options: Flags = jsonOnly
-    ? {}
-    : ({
-        format: "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/ba[ext=mp3]/b",
-        formatSort: `vcodec:h264,filesize:${uploadLimit}M`,
-        maxFilesize: `${uploadLimit}M`,
-        noProgress: true,
-        playlistItems: "1",
-      } as Flags);
+  const options: Flags = {
+    format: "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/ba[ext=mp3]/b",
+    matchFilter: "!is_live & !was_live & !playlist_id",
+    formatSort: `vcodec:h264,filesize:${uploadLimit}M` as any, // the typings are wrong
+    maxFilesize: `${uploadLimit}M`,
+    writeInfoJson: true,
+    noCleanInfoJson: true,
+    paths: "./temp",
+    output: `${interaction.id}.%(ext)s`,
+  } as Flags;
 
-  let buffer: Buffer, jsonDump: Payload, extension: string;
+  if (jsonOnly) {
+    options.skipDownload = true;
+  }
+
+  if (ENV.COOKIES_FILE_NAME) {
+    options.cookies = ENV.COOKIES_FILE_NAME;
+  }
+
+  let output: string, payload: Payload;
 
   try {
-    ({ buffer, jsonDump, extension } = await tryDownload(url, options));
+    output = await tryDownload(url, options);
+    const fileContents = await readFile(`./temp/${interaction.id}.info.json`, "utf-8").catch(() => {
+      throw new Error(detectAbortion(output));
+    });
+    payload = JSON.parse(fileContents) as Payload;
   } catch (error) {
     errorReply(interaction, error, url, ephemeral, true);
     return;
   }
 
   try {
-    await createReply({ interaction, buffer, extension, jsonDump, ephemeral, jsonOnly });
+    await createReply(interaction, payload, ephemeral, jsonOnly);
   } catch (error) {
     errorReply(interaction, error, url, ephemeral, false);
+  } finally {
+    const filename = (payload as any).filename; // the typings are wrong
+    unlink(filename).catch(() => null);
+    unlink(`./temp/${interaction.id}.info.json`).catch(() => null);
   }
 }
 
@@ -91,112 +117,78 @@ function getUploadLimit(guild: Guild | null): number {
       return 100;
 
     default:
-      return 25;
+      return 10;
   }
 }
 
-type DownloadResult = {
-  buffer: Buffer;
-  output: string;
-};
-
-async function downloadToBuffer(url: string, options: any): Promise<DownloadResult> {
-  return new Promise((resolve, reject) => {
-    const process = youtubeDl.exec(url, options, { stdio: ["ignore", "pipe", "pipe"] });
-
-    if (!process.stdout || !process.stderr) {
-      throw new Error("Unable to read process streams.");
+async function tryDownload(url: string, options: Flags): Promise<string> {
+  try {
+    return (await youtubeDl.exec(url, options)).stdout;
+  } catch (error) {
+    const stderr = (error as { stderr?: string })?.stderr ?? "";
+    if (stderr) {
+      throw new Error(stderr);
     }
 
-    process.catch(reject);
-
-    const promises = [readStream(process.stdout), readStream(process.stderr)];
-
-    Promise.all(promises)
-      .then(([buffer, output]) => resolve({ buffer, output: output.toString("utf-8") }))
-      .catch(reject);
-  });
+    throw error;
+  }
 }
 
-async function readStream(stream: Readable): Promise<Buffer> {
-  const chunks: Buffer[] = [];
+function detectAbortion(stdout: string): string {
+  const lines = stdout.split("\n");
 
-  return new Promise((resolve, reject) => {
-    stream.on("data", chunk => {
-      chunks.push(chunk);
-    });
-
-    stream.on("end", () => {
-      resolve(Buffer.concat(chunks));
-    });
-
-    stream.on("error", reject);
-  });
-}
-
-function isDownloadResult(result: unknown): result is DownloadResult {
-  return typeof result === "object" && result !== null && "buffer" in result && Buffer.isBuffer(result.buffer);
-}
-
-function isPayload(result: unknown): result is Payload {
-  return typeof result === "object" && result !== null && "_type" in result;
-}
-
-async function tryDownload(url: string, options: Flags, jsonOnly = false) {
-  const promises: Promise<DownloadResult | Payload>[] = [];
-
-  promises.push(youtubeDl(url, { ...options, dumpSingleJson: true }));
-
-  if (!jsonOnly) {
-    promises.push(downloadToBuffer(url, { ...options, output: "-" }));
+  for (const line of lines) {
+    if (line.includes("File is larger than max-filesize")) {
+      // Extract file size and max file size from the message
+      const match = line.match(/\((\d+) bytes > (\d+) bytes\)/);
+      if (match) {
+        const [_, filesizeBytes, maxFilesizeBytes] = match;
+        const filesizeMB = (parseInt(filesizeBytes) / (1024 * 1024)).toFixed(1);
+        const maxFilesizeMB = (parseInt(maxFilesizeBytes) / (1024 * 1024)).toFixed(1);
+        return `Requested file is too large. (${filesizeMB}MB > ${maxFilesizeMB}MB)`;
+      }
+    } else if (line.includes("does not pass filter")) {
+      return "Downloading livestreams or playlists is not supported.";
+    }
   }
 
-  const results = await Promise.allSettled(promises);
+  return "Unknown error occurred.";
+}
 
-  const [jsonDumpResult, downloadResultResult] = results;
-
-  if (downloadResultResult.status === "rejected" || jsonDumpResult.status === "rejected") {
-    const reason = results.find(result => result.status === "rejected")?.reason;
-
-    throw reason;
-  }
-
-  if (!isPayload(jsonDumpResult.value)) {
-    throw new Error("Unexpected result from download.");
-  }
+async function createReply(
+  interaction: ValidInteraction,
+  payload: Payload,
+  ephemeral: boolean,
+  jsonOnly: boolean,
+): Promise<void> {
+  let attachment: AttachmentBuilder | undefined;
 
   if (jsonOnly) {
-    return { jsonDump: jsonDumpResult.value, buffer: Buffer.from([]), extension: "" };
+    const buffer = Buffer.from(JSON.stringify(payload, null, 2), "utf-8");
+    attachment = new AttachmentBuilder(buffer, {
+      name: "info.json",
+    });
+  } else {
+    const filename: string = (payload as any).filename; // the typings are wrong
+    attachment = new AttachmentBuilder(filename);
   }
 
-  if (!isDownloadResult(downloadResultResult.value)) {
-    throw new Error("Unexpected result from download.");
+  if (interaction.isContextMenuCommand() && !ephemeral) {
+    const message = getMessage({ jsonDump: payload, useEmoji: false });
+    await interaction.targetMessage.reply({
+      content: "" + "\n" + message,
+      files: [attachment],
+      allowedMentions: { repliedUser: false },
+    });
+
+    interaction.deleteReply();
+  } else {
+    const message = getMessage({ jsonDump: payload, useEmoji: true });
+    await interaction.editReply({
+      content: message,
+      files: [attachment],
+    });
   }
-
-  const downloadResult = downloadResultResult.value;
-
-  if (downloadResult.output.includes("File is larger than max-filesize")) {
-    let errorString = "The requested media is too large.";
-
-    const sizeString = downloadResult.output.match(/\d+(?= bytes >)/);
-
-    if (sizeString) {
-      const size = Number(sizeString[0]) / 1_000_000;
-      errorString += ` (${size.toFixed(2)}MB)`;
-    }
-
-    throw new Error(errorString);
-  }
-
-  const jsonDump = jsonDumpResult.value;
-
-  const extension = getExtension(jsonDump);
-
-  if (!extension) {
-    throw new Error("Unable to determine file extension.");
-  }
-
-  return { buffer: downloadResult.buffer, jsonDump, extension };
 }
 
 async function errorReply(
@@ -221,6 +213,7 @@ async function errorReply(
 
   const response = await interaction.followUp({
     ...errorMessage(errorString),
+    ephemeral: true,
     components: [actionRow],
   });
 
@@ -235,66 +228,3 @@ async function errorReply(
     i.reply({ content: "The error has been logged.", ephemeral: true });
   }
 }
-
-function getExtension(jsonDump: any): string | undefined {
-  const isPlaylist = jsonDump._type === "playlist";
-  const media = isPlaylist ? jsonDump.entries?.[0] : jsonDump;
-  return media?.ext ?? media?.filename?.split(".")?.pop();
-}
-
-async function createReply({
-  interaction,
-  buffer,
-  extension,
-  jsonDump,
-  ephemeral,
-  jsonOnly,
-}: DlReplyOptions): Promise<void> {
-  let attachment: AttachmentBuilder;
-
-  if (jsonOnly) {
-    const buffer = Buffer.from(JSON.stringify(jsonDump, null, 2), "utf-8");
-    attachment = new AttachmentBuilder(buffer, {
-      name: "info.json",
-    });
-  } else {
-    attachment = new AttachmentBuilder(buffer, {
-      name: `?.${extension}`,
-    });
-  }
-
-  if (interaction.isContextMenuCommand() && !ephemeral) {
-    const message = getMessage({ jsonDump, useEmoji: false });
-    await interaction.targetMessage.reply({
-      content: "" + "\n" + message,
-      files: [attachment],
-      allowedMentions: { repliedUser: false },
-    });
-
-    interaction.deleteReply();
-  } else {
-    const message = getMessage({ jsonDump, useEmoji: true });
-    await interaction.editReply({
-      content: message,
-      files: [attachment],
-    });
-  }
-}
-
-type ValidInteraction = ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
-
-type DlRunOptions = {
-  interaction: ValidInteraction;
-  url: string;
-  ephemeral: boolean;
-  jsonOnly?: boolean;
-};
-
-type DlReplyOptions = {
-  interaction: ValidInteraction;
-  buffer: Buffer;
-  extension: string;
-  jsonDump: Payload;
-  ephemeral: boolean;
-  jsonOnly?: boolean;
-};

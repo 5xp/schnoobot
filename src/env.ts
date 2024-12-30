@@ -9,6 +9,7 @@ const envSchema = z.object({
   CLIENT_ID: z.string(),
   DB_FILE_NAME: z.string(),
   GUILD_ID: z.string().optional(),
+  COOKIES_FILE_NAME: z.string().optional(),
 });
 
 export const ENV = envSchema.parse(process.env);

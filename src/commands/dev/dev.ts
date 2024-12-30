@@ -9,6 +9,14 @@ export default {
     .setDescription("Developer commands")
     .addSubcommand(subcommand => subcommand.setName("run-code").setDescription("Run code"))
     .addSubcommand(subcommand => subcommand.setName("update-ytdlp").setDescription("Update youtube-dl"))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName("info")
+        .setDescription("Get information about a file from the internet")
+        .addStringOption(option =>
+          option.setName("url").setDescription("The URL of the file to get information about").setRequired(true),
+        ),
+    )
     .addSubcommandGroup(subcommandGroup =>
       subcommandGroup
         .setName("manage-commands")

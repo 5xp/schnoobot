@@ -1,7 +1,5 @@
 {
   "name": "schnoobot",
-  "version": "1.0.0",
-  "description": "",
   "main": "./dist/bot.js",
   "exports": "./dist/bot.js",
   "scripts": {
@@ -11,12 +9,10 @@
     "start": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register .",
     "deploy:guild": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js",
     "deploy:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js --global",
-    "clear": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js",
+    "clear:guild": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js",
+    "clear:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js --global",
     "drizzle:push": "npx drizzle-kit push"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^11.7.0",
     "cross-env": "^7.0.3",
