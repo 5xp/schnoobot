@@ -26,7 +26,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
     const name = `${formatEmoji} ${truncatedTitle}${adultMarker}${score}`;
 
     return {
-      name,
+      name: name.slice(0, 100),
       value: `id:${result.id}`,
     };
   });
@@ -36,6 +36,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
   const name = interaction.options.getString("name", true);
+
   const id = name.startsWith("id:") ? parseInt(name.slice(3)) : undefined;
   const query = id ? undefined : name;
 
