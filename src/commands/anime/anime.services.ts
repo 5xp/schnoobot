@@ -5,8 +5,8 @@ import jwt from "jsonwebtoken";
 import NodeCache from "node-cache";
 import {
   Anime,
-  AnimeActivity,
-  animeActivityHistoryApiResponseSchema,
+  ListActivity,
+  listActivityHistoryApiResponseSchema,
   animeApiResponseSchema,
   AnimeSearchResult,
   animeSearchResultApiResponseSchema,
@@ -255,9 +255,9 @@ export async function getAnimeUser({ id, query, accessToken }: AnimeUserSearchOp
   return result;
 }
 
-export async function getUserLastActivity(userId: number): Promise<AnimeActivity | null> {
+export async function getUserLastActivity(userId: number): Promise<ListActivity | null> {
   if (userLastActivityCache.has(userId)) {
-    return userLastActivityCache.get<AnimeActivity>(userId) ?? null;
+    return userLastActivityCache.get<ListActivity>(userId) ?? null;
   }
 
   const apiQuery = `
@@ -288,7 +288,7 @@ export async function getUserLastActivity(userId: number): Promise<AnimeActivity
 
   const json = await queryAniList(apiQuery, variables);
 
-  const parseResult = animeActivityHistoryApiResponseSchema.safeParse(json);
+  const parseResult = listActivityHistoryApiResponseSchema.safeParse(json);
 
   if (!parseResult.success) {
     console.error(JSON.stringify(json, null, 2));
@@ -382,7 +382,7 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
     .setThumbnail(anime.bannerImage);
 }
 
-export function getAnimeUserEmbed(user: AnimeUser, activity: AnimeActivity | null, discordUser?: User): EmbedBuilder {
+export function getAnimeUserEmbed(user: AnimeUser, activity: ListActivity | null, discordUser?: User): EmbedBuilder {
   const joinWithSeparator = (parts: (string | null)[], separator = " • ") => parts.filter(Boolean).join(separator);
   const capitalizeFirstLetter = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 

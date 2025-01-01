@@ -15,24 +15,59 @@ export const mediaFormatEnum = z.enum([
 
 export type MediaFormat = z.infer<typeof mediaFormatEnum>;
 
-export const mediaStatusEnum = z.enum(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]);
+const mediaStatusEnum = z.enum(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]);
 
-export type MediaStatus = z.infer<typeof mediaStatusEnum>;
+type MediaStatus = z.infer<typeof mediaStatusEnum>;
 
-/**
- * Anime Search
- */
-export const animeSearchResultSchema = z.object({
+const mediaListStatusEnum = z.enum(["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]);
+
+export const fuzzyDateSchema = z.object({
+  year: z.number().nullable(),
+  month: z.number().nullable(),
+  day: z.number().nullable(),
+});
+
+export const mediaListEntrySchema = z.object({
+  startedAt: fuzzyDateSchema.nullable(),
+  completedAt: fuzzyDateSchema.nullable(),
+  createdAt: z.number(),
+  progress: z.number(),
+  status: mediaListStatusEnum,
+});
+
+export const titleSchema = z.object({
+  romaji: z.string().nullable(),
+  native: z.string().nullable(),
+  english: z.string().nullable(),
+  userPreferred: z.string().nullable(),
+});
+
+export const mediaSchema = z.object({
   id: z.number(),
-  title: z.object({
-    romaji: z.string().nullable(),
-    native: z.string().nullable(),
-    english: z.string().nullable(),
-    userPreferred: z.string().nullable(),
-  }),
+  title: titleSchema,
   meanScore: z.number().nullable(),
   isAdult: z.boolean(),
   format: mediaFormatEnum.nullable(),
+  description: z.string(),
+  episodes: z.number().nullable(),
+  status: mediaStatusEnum,
+  genres: z.array(z.string()),
+  startDate: fuzzyDateSchema,
+  endDate: fuzzyDateSchema,
+  bannerImage: z.string().nullable(),
+  coverImage: z.object({
+    color: z.string().nullable(),
+    extraLarge: z.string(),
+  }),
+  mediaListEntry: mediaListEntrySchema.nullable(),
+});
+
+const animeSearchResultSchema = mediaSchema.pick({
+  id: true,
+  title: true,
+  meanScore: true,
+  isAdult: true,
+  format: true,
 });
 
 export type AnimeSearchResult = z.infer<typeof animeSearchResultSchema>;
@@ -45,34 +80,23 @@ export const animeSearchResultApiResponseSchema = z.object({
   }),
 });
 
-export type AnimeSearchResultApiResponse = z.infer<typeof animeSearchResultApiResponseSchema>;
+type AnimeSearchResultApiResponse = z.infer<typeof animeSearchResultApiResponseSchema>;
 
-/**
- * Anime
- */
-export const animeSchema = z
-  .object({
-    description: z.string(),
-    episodes: z.number().nullable(),
-    status: mediaStatusEnum,
-    genres: z.array(z.string()),
-    startDate: z.object({
-      year: z.number().nullable(),
-      month: z.number().nullable(),
-      day: z.number().nullable(),
-    }),
-    endDate: z.object({
-      year: z.number().nullable(),
-      month: z.number().nullable(),
-      day: z.number().nullable(),
-    }),
-    bannerImage: z.string().nullable(),
-    coverImage: z.object({
-      color: z.string().nullable(),
-      extraLarge: z.string(),
-    }),
-  })
-  .merge(animeSearchResultSchema);
+const animeSchema = mediaSchema.pick({
+  id: true,
+  title: true,
+  meanScore: true,
+  isAdult: true,
+  format: true,
+  description: true,
+  episodes: true,
+  status: true,
+  genres: true,
+  startDate: true,
+  endDate: true,
+  bannerImage: true,
+  coverImage: true,
+});
 
 export type Anime = z.infer<typeof animeSchema>;
 
@@ -82,14 +106,41 @@ export const animeApiResponseSchema = z.object({
   }),
 });
 
-export type AnimeApiResponse = z.infer<typeof animeApiResponseSchema>;
+type AnimeApiResponse = z.infer<typeof animeApiResponseSchema>;
 
-/**
- * User Search
- */
-export const animeUserSearchResultSchema = z.object({
+const animeUserSchema = z.object({
   id: z.number(),
   name: z.string(),
+  about: z.string().nullable(),
+  createdAt: z.number(),
+  isFollower: z.boolean(),
+  isFollowing: z.boolean(),
+  options: z.object({
+    profileColor: z.string(),
+  }),
+  statistics: z.object({
+    anime: z.object({
+      count: z.number(),
+      minutesWatched: z.number(),
+      genres: z.array(
+        z.object({
+          genre: z.string(),
+          count: z.number(),
+        }),
+      ),
+    }),
+  }),
+  avatar: z.object({
+    large: z.string(),
+  }),
+  bannerImage: z.string().nullable(),
+});
+
+export type AnimeUser = z.infer<typeof animeUserSchema>;
+
+const animeUserSearchResultSchema = animeUserSchema.pick({
+  id: true,
+  name: true,
 });
 
 export type AnimeUserSearchResult = z.infer<typeof animeUserSearchResultSchema>;
@@ -102,40 +153,7 @@ export const animeUserSearchResultApiResponseSchema = z.object({
   }),
 });
 
-/**
- * User
- */
-export type AnimeUserSearchResultApiResponse = z.infer<typeof animeUserSearchResultApiResponseSchema>;
-
-export const animeUserSchema = z
-  .object({
-    about: z.string().nullable(),
-    createdAt: z.number(),
-    isFollower: z.boolean(),
-    isFollowing: z.boolean(),
-    options: z.object({
-      profileColor: z.string(),
-    }),
-    statistics: z.object({
-      anime: z.object({
-        count: z.number(),
-        minutesWatched: z.number(),
-        genres: z.array(
-          z.object({
-            genre: z.string(),
-            count: z.number(),
-          }),
-        ),
-      }),
-    }),
-    avatar: z.object({
-      large: z.string(),
-    }),
-    bannerImage: z.string().nullable(),
-  })
-  .merge(animeUserSearchResultSchema);
-
-export type AnimeUser = z.infer<typeof animeUserSchema>;
+type AnimeUserSearchResultApiResponse = z.infer<typeof animeUserSearchResultApiResponseSchema>;
 
 export const animeUserApiResponseSchema = z.object({
   data: z.object({
@@ -143,48 +161,26 @@ export const animeUserApiResponseSchema = z.object({
   }),
 });
 
-export type AnimeUserApiResponse = z.infer<typeof animeUserApiResponseSchema>;
+type AnimeUserApiResponse = z.infer<typeof animeUserApiResponseSchema>;
 
-// {
-//   "data": {
-//     "Activity": {
-//       "media": {
-//         "title": {
-//           "english": "To Every You I’ve Loved Before",
-//           "native": "僕が愛したすべての君へ",
-//           "romaji": "Boku ga Aishita Subete no Kimi e",
-//           "userPreferred": "Boku ga Aishita Subete no Kimi e"
-//         }
-//       },
-//       "progress": null,
-//       "status": "completed"
-//     }
-//   }
-// }
-
-export const animeActivitySchema = z.object({
+const listActivitySchema = z.object({
   media: z.object({
     id: z.number(),
-    title: z.object({
-      english: z.string().nullable(),
-      native: z.string().nullable(),
-      romaji: z.string().nullable(),
-      userPreferred: z.string().nullable(),
-    }),
+    title: titleSchema,
   }),
   progress: z.string().nullable(),
   status: z.string(),
   createdAt: z.number(),
 });
 
-export type AnimeActivity = z.infer<typeof animeActivitySchema>;
+export type ListActivity = z.infer<typeof listActivitySchema>;
 
-export const animeActivityHistoryApiResponseSchema = z.object({
+export const listActivityHistoryApiResponseSchema = z.object({
   data: z.object({
     Page: z.object({
-      activities: z.array(animeActivitySchema),
+      activities: z.array(listActivitySchema),
     }),
   }),
 });
 
-export type AnimeActivityHistoryApiResponse = z.infer<typeof animeActivityHistoryApiResponseSchema>;
+type ListActivityHistoryApiResponse = z.infer<typeof listActivityHistoryApiResponseSchema>;
