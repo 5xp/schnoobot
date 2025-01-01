@@ -1,11 +1,11 @@
-import { bold, EmbedBuilder } from "discord.js";
+import { bold, ColorResolvable, EmbedBuilder } from "discord.js";
 
 export function errorEmbed(error: string): EmbedBuilder {
   return new EmbedBuilder().setDescription(bold(error)).setColor("Red");
 }
 
-export function simpleEmbed(message: string): EmbedBuilder {
-  return new EmbedBuilder().setDescription(message).setColor("Blurple");
+export function simpleEmbed(message: string, color: ColorResolvable = "Blurple"): EmbedBuilder {
+  return new EmbedBuilder().setDescription(message).setColor(color);
 }
 
 export function errorMessage(error: string) {

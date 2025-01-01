@@ -10,6 +10,9 @@ const envSchema = z.object({
   DB_FILE_NAME: z.string(),
   GUILD_ID: z.string().optional(),
   COOKIES_FILE_NAME: z.string().optional(),
+  ANILIST_CLIENT_ID: z.string().optional(),
+  ANILIST_CLIENT_SECRET: z.string().optional(),
+  ANILIST_REDIRECT_URI: z.string().optional(),
 });
 
 export const ENV = envSchema.parse(process.env);

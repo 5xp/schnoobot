@@ -1,5 +1,6 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage, truncateString } from "@common/reply-utils";
+import { getAniListAccessToken } from "@db/services";
 import { AutocompleteInteraction, ChatInputCommandInteraction } from "discord.js";
 import { formatEmojiMap, getAnime, getAnimeEmbed, getTitle, searchAnime } from "./anime.services";
 
@@ -11,7 +12,9 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
     return;
   }
 
-  const results = await searchAnime(query);
+  const accessToken = await getAniListAccessToken(interaction.user.id);
+
+  const results = await searchAnime(query, accessToken);
 
   const options = results.map(result => {
     const formatEmoji = result.format ? formatEmojiMap[result.format] : "";
@@ -36,11 +39,12 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
   const name = interaction.options.getString("name", true);
+  const accessToken = await getAniListAccessToken(interaction.user.id);
 
   const id = name.startsWith("id:") ? parseInt(name.slice(3)) : undefined;
   const query = id ? undefined : name;
 
-  const anime = await getAnime(id, query);
+  const anime = await getAnime(id, query, accessToken);
 
   if (!anime) {
     await interaction.reply(errorMessage("Anime not found"));

@@ -21,3 +21,10 @@ export const casinoLogs = sqliteTable("casino_logs", {
 });
 
 export type CasinoLog = InferSelectModel<typeof casinoLogs>;
+
+export const aniListUsers = sqliteTable("ani_list_users", {
+  userId: text("user_id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+});
+
+export type AniListUser = InferSelectModel<typeof aniListUsers>;

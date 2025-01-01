@@ -1,5 +1,7 @@
 import { truncateString } from "@common/reply-utils";
-import { Colors, EmbedBuilder, hyperlink, time } from "discord.js";
+import { Colors, EmbedBuilder, hyperlink, time, User } from "discord.js";
+import { ENV } from "env";
+import jwt from "jsonwebtoken";
 import NodeCache from "node-cache";
 import {
   Anime,
@@ -22,7 +24,7 @@ const animeUserCache = new NodeCache({ stdTTL: 60 * 60 * 12, checkperiod: 60 * 6
 const animeUserIdCache = new NodeCache({ stdTTL: 60 * 60 * 12, checkperiod: 60 * 60 });
 const userLastActivityCache = new NodeCache({ stdTTL: 60, checkperiod: 60 });
 
-export async function searchAnime(query: string): Promise<AnimeSearchResult[]> {
+export async function searchAnime(query: string, accessToken?: string): Promise<AnimeSearchResult[]> {
   const cached = animeSearchCache.get<AnimeSearchResult[]>(query);
 
   if (cached) {
@@ -52,19 +54,8 @@ export async function searchAnime(query: string): Promise<AnimeSearchResult[]> {
     perPage: 8,
   };
 
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: apiQuery,
-      variables,
-    }),
-  });
+  const json = await queryAniList(apiQuery, variables, accessToken);
 
-  const json = await response.json();
   const parseResult = animeSearchResultApiResponseSchema.safeParse(json);
 
   if (!parseResult.success) {
@@ -80,7 +71,7 @@ export async function searchAnime(query: string): Promise<AnimeSearchResult[]> {
   return results;
 }
 
-export async function getAnime(id?: number, query?: string): Promise<Anime | null> {
+export async function getAnime(id?: number, query?: string, accessToken?: string): Promise<Anime | null> {
   if (!id && !query) {
     return null;
   }
@@ -133,19 +124,7 @@ export async function getAnime(id?: number, query?: string): Promise<Anime | nul
     search: query,
   };
 
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: apiQuery,
-      variables,
-    }),
-  });
-
-  const json = await response.json();
+  const json = await queryAniList(apiQuery, variables, accessToken);
 
   const parseResult = animeApiResponseSchema.safeParse(json);
   if (!parseResult.success) {
@@ -183,19 +162,7 @@ export async function searchUsers(query: string): Promise<AnimeUserSearchResult[
     perPage: 8,
   };
 
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: apiQuery,
-      variables,
-    }),
-  });
-
-  const json = await response.json();
+  const json = await queryAniList(apiQuery, variables);
 
   const parseResult = animeUserSearchResultApiResponseSchema.safeParse(json);
 
@@ -212,7 +179,12 @@ export async function searchUsers(query: string): Promise<AnimeUserSearchResult[
   return results;
 }
 
-export async function getAnimeUser({ id, query }: { id?: number; query?: string }): Promise<AnimeUser | null> {
+type AnimeUserSearchOptions = {
+  id?: number;
+  query?: string;
+  accessToken?: string;
+};
+export async function getAnimeUser({ id, query, accessToken }: AnimeUserSearchOptions): Promise<AnimeUser | null> {
   if (!id && !query) {
     return null;
   }
@@ -265,19 +237,7 @@ export async function getAnimeUser({ id, query }: { id?: number; query?: string 
     genreLimit: 5,
   };
 
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: apiQuery,
-      variables,
-    }),
-  });
-
-  const json = await response.json();
+  const json = await queryAniList(apiQuery, variables, accessToken);
 
   const parseResult = animeUserApiResponseSchema.safeParse(json);
 
@@ -326,19 +286,7 @@ export async function getUserLastActivity(userId: number): Promise<AnimeActivity
     userId,
   };
 
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: apiQuery,
-      variables,
-    }),
-  });
-
-  const json = await response.json();
+  const json = await queryAniList(apiQuery, variables);
 
   const parseResult = animeActivityHistoryApiResponseSchema.safeParse(json);
 
@@ -359,6 +307,18 @@ export async function getUserLastActivity(userId: number): Promise<AnimeActivity
   userLastActivityCache.set(userId, result);
 
   return result;
+}
+
+export function extractUserIdFromAccessToken(accessToken: string): number | undefined {
+  const decodedToken = jwt.decode(accessToken);
+
+  if (!decodedToken || typeof decodedToken !== "object") {
+    return;
+  }
+
+  if (decodedToken.sub) {
+    return parseInt(decodedToken.sub);
+  }
 }
 
 function formatDate(date: { year: number | null; month: number | null; day: number | null }): string | null {
@@ -399,20 +359,18 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
 
   const description = truncateString(descriptionParts.join("\n\n").trim(), 4096);
 
+  const formattedStartDate = formatDate(anime.startDate);
+  const formattedEndDate = formatDate(anime.endDate);
   const dateParts = joinWithSeparator(
-    [
-      formatDate(anime.startDate),
-      anime.endDate && anime.endDate !== anime.startDate ? formatDate(anime.endDate) : null,
-    ],
+    [formatDate(anime.startDate), formattedStartDate !== formattedEndDate ? formattedEndDate : null],
     " - ",
   );
 
-  const footerParts = [
-    `${statusEmojiMap[anime.status]} ${statusNameMap[anime.status]}`,
+  const footer = joinWithSeparator([
+    statusNameMap[anime.status],
     dateParts,
     anime.meanScore ? `⭐${anime.meanScore}/100` : null,
-  ];
-  const footer = joinWithSeparator(footerParts);
+  ]);
 
   return new EmbedBuilder()
     .setTitle(title)
@@ -424,7 +382,7 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
     .setThumbnail(anime.bannerImage);
 }
 
-export function getAnimeUserEmbed(user: AnimeUser, activity: AnimeActivity | null): EmbedBuilder {
+export function getAnimeUserEmbed(user: AnimeUser, activity: AnimeActivity | null, discordUser?: User): EmbedBuilder {
   const joinWithSeparator = (parts: (string | null)[], separator = " • ") => parts.filter(Boolean).join(separator);
   const capitalizeFirstLetter = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -433,8 +391,12 @@ export function getAnimeUserEmbed(user: AnimeUser, activity: AnimeActivity | nul
 
   const descriptionParts = [];
 
-  if (user.isFollowing) {
-    descriptionParts.push(`-# Follows you`);
+  if (user.isFollower || user.isFollowing) {
+    const following = joinWithSeparator([
+      user.isFollowing ? "Following" : null,
+      user.isFollower ? "Follows you" : null,
+    ]);
+    if (following) descriptionParts.push(`-# ${following}`);
   }
 
   if (user.statistics.anime.count || user.statistics.anime.minutesWatched) {
@@ -475,12 +437,62 @@ export function getAnimeUserEmbed(user: AnimeUser, activity: AnimeActivity | nul
   const createdDate = new Date(user.createdAt * 1000);
 
   return new EmbedBuilder()
+    .setAuthor(
+      discordUser
+        ? {
+            name: discordUser.displayName,
+            iconURL: discordUser.avatarURL() ?? undefined,
+          }
+        : null,
+    )
     .setTitle(title)
     .setURL(`https://anilist.co/user/${user.id}`)
     .setDescription(description)
     .setColor(color)
     .setThumbnail(user.avatar.large)
     .setFooter({ text: `📅 Joined ${createdDate.toDateString().slice(4)}` });
+}
+
+export async function getAccessToken(code: string): Promise<string | undefined> {
+  const result = await fetch("https://anilist.co/api/v2/oauth/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      grant_type: "authorization_code",
+      client_id: ENV.ANILIST_CLIENT_ID,
+      client_secret: ENV.ANILIST_CLIENT_SECRET,
+      redirect_uri: ENV.ANILIST_REDIRECT_URI,
+      code,
+    }),
+  });
+
+  if (result.ok) {
+    const data = await result.json();
+    return data.access_token;
+  }
+}
+
+function queryAniList<T = any>(query: string, variables: Record<string, unknown>, accessToken?: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
+    })
+      .then(response => response.json())
+      .then(resolve)
+      .catch(reject);
+  });
 }
 
 export function getTitle(title: { romaji: string | null; native: string | null; english: string | null }): string {
@@ -513,20 +525,12 @@ export const formatNameMap: Record<MediaFormat, string> = {
   ONE_SHOT: "One Shot",
 };
 
-export const statusEmojiMap: Record<string, string> = {
-  FINISHED: "✅",
-  RELEASING: "📅",
-  NOT_YET_RELEASED: "🔜",
-  CANCELLED: "❌",
-  HIATUS: "⏸️",
-};
-
 export const statusNameMap: Record<string, string> = {
-  FINISHED: "Finished Airing",
-  RELEASING: "Releasing",
-  NOT_YET_RELEASED: "Not Yet Released",
-  CANCELLED: "Cancelled",
-  HIATUS: "Hiatus",
+  FINISHED: "✅ Finished",
+  RELEASING: "📅 Releasing",
+  NOT_YET_RELEASED: "🔜 Not Yet Released",
+  CANCELLED: "❌ Cancelled",
+  HIATUS: "⏸️ Hiatus",
 };
 
 function removeHTML(text: string): string {

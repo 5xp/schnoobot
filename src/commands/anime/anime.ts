@@ -18,33 +18,22 @@ export default {
             .setMaxLength(150),
         ),
     )
-    .addSubcommandGroup(group =>
-      group
+    .addSubcommand(subcommand =>
+      subcommand
         .setName("user")
-        .setDescription("User related commands")
-        .addSubcommand(subcommand =>
-          subcommand
-            .setName("anilist")
-            .setDescription("Get information about a user on AniList")
-            .addStringOption(option =>
-              option
-                .setName("username")
-                .setDescription("Get a user by their AniList username")
-                .setRequired(true)
-                .setAutocomplete(true)
-                .setMaxLength(100),
-            ),
+        .setDescription("Get information about an AniList user")
+        .addStringOption(option =>
+          option
+            .setName("username")
+            .setDescription("Get information about an AniList user")
+            .setRequired(false)
+            .setAutocomplete(true),
         )
-        .addSubcommand(subcommand =>
-          subcommand
-            .setName("discord")
-            .setDescription("Get an AniList user information for a connected Discord user")
-            .addUserOption(option =>
-              option
-                .setName("user")
-                .setDescription("Get an AniList user information for a connected Discord user")
-                .setRequired(true),
-            ),
+        .addUserOption(option =>
+          option
+            .setName("discord-user")
+            .setDescription("Get information about an AniList user connected to Schnoobot")
+            .setRequired(false),
         ),
     )
     .addSubcommand(subcommand =>

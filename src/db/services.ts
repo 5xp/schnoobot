@@ -1,9 +1,10 @@
 import { Collection } from "discord.js";
 import { eq, sql } from "drizzle-orm";
 import db from "./db";
-import { CasinoLog, casinoLogs, User, users } from "./schema";
+import { AniListUser, aniListUsers, CasinoLog, casinoLogs, User, users } from "./schema";
 
 const usersCache = new Collection<string, User>();
+const anilistCache = new Collection<string, AniListUser>();
 
 const hoursToMs = 60 * 60 * 1000;
 const minHoursUntilDaily = 18;
@@ -191,4 +192,28 @@ export async function addLog(userId: string, game: string, netGain: number): Pro
     .returning();
 
   return log;
+}
+
+export async function setAniListAccessToken(userId: string, accessToken: string) {
+  await db.insert(aniListUsers).values({ userId, accessToken }).onConflictDoUpdate({
+    target: aniListUsers.userId,
+    set: { accessToken },
+  });
+
+  anilistCache.set(userId, { userId, accessToken });
+}
+
+export async function getAniListAccessToken(userId: string) {
+  const cachedUser = anilistCache.get(userId);
+
+  if (cachedUser) {
+    return cachedUser.accessToken;
+  }
+
+  const [user] = await db.select().from(aniListUsers).where(eq(aniListUsers.userId, userId));
+
+  if (user) {
+    anilistCache.set(userId, user);
+    return user.accessToken;
+  }
 }
