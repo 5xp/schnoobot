@@ -1,5 +1,11 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ApplicationIntegrationType,
+  AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  InteractionContextType,
+  SlashCommandBuilder,
+} from "discord.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -38,8 +44,9 @@ export default {
     )
     .addSubcommand(subcommand =>
       subcommand.setName("connect").setDescription("Connect your AniList account to Schnoobot"),
-    ),
-  isUserCommand: true,
+    )
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   async autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const subcommand = interaction.options.getSubcommand();

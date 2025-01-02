@@ -1,7 +1,7 @@
 import Currency from "@common/Currency";
 import ExtendedClient from "@common/ExtendedClient";
-import { getDailyAvailableAt, getDailyLateAt, getUser } from "@db/services";
-import { ChatInputCommandInteraction, EmbedBuilder, bold, time, TimestampStyles } from "discord.js";
+import { getDailyAvailableAt, getUser } from "@db/services";
+import { bold, ChatInputCommandInteraction, EmbedBuilder, time, TimestampStyles } from "discord.js";
 
 export default async (interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> => {
   const user = interaction.options.getUser("user") ?? interaction.user;

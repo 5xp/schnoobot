@@ -1,12 +1,14 @@
 import ExtendedClient from "@common/ExtendedClient";
 import {
   ActionRowBuilder,
+  ApplicationIntegrationType,
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
   Colors,
   EmbedBuilder,
   GuildMember,
+  InteractionContextType,
   MessageComponentInteraction,
   SlashCommandBuilder,
   User,
@@ -17,8 +19,9 @@ export default {
   data: new SlashCommandBuilder()
     .setName("avatar")
     .setDescription("Get yourself or another user's avatar")
-    .addUserOption(option => option.setName("user").setDescription("The user to get the avatar of").setRequired(false)),
-  isUserCommand: true,
+    .addUserOption(option => option.setName("user").setDescription("The user to get the avatar of").setRequired(false))
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     const user = interaction.options.getUser("user") ?? interaction.user;
     const guildMember = interaction.inCachedGuild() ? interaction.guild.members.resolve(user) : null;

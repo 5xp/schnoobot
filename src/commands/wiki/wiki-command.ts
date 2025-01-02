@@ -1,6 +1,6 @@
-import { SlashCommandBuilder } from "discord.js";
-import { execute } from "./handleInteraction";
+import { ApplicationIntegrationType, InteractionContextType, SlashCommandBuilder } from "discord.js";
 import { autocomplete } from "./autocomplete";
+import { execute } from "./handleInteraction";
 import { supportedWikis } from "./Wiki";
 
 export default {
@@ -22,10 +22,9 @@ export default {
     .addStringOption(option =>
       option.setName("query").setDescription("The query to search for").setRequired(true).setAutocomplete(true),
     )
-    .addBooleanOption(option =>
-      option.setName("hide").setDescription("Make the response ephemeral").setRequired(false),
-    ),
-  isUserCommand: true,
+    .addBooleanOption(option => option.setName("hide").setDescription("Make the response ephemeral").setRequired(false))
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   execute,
   autocomplete,
 };

@@ -1,16 +1,16 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
-  ChatInputCommandInteraction,
-  MessageComponentInteraction,
-  InteractionResponse,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  InteractionResponse,
+  MessageComponentInteraction,
 } from "discord.js";
-import { supportedWikis } from "./Wiki";
 import Paginator from "./Paginator";
+import { supportedWikis } from "./Wiki";
 
 export async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const query = interaction.options.getString("query", true);

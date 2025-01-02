@@ -39,7 +39,7 @@ export abstract class BaseScraper {
 
   splitIntoSections(element: Element): string[] {
     const children = Array.from(element.children);
-    let sections: string[] = [];
+    const sections: string[] = [];
     let currentSection = "";
 
     children.forEach((child, i) => {

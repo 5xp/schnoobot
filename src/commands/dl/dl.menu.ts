@@ -3,7 +3,9 @@ import { errorMessage, simpleEmbed } from "@common/reply-utils";
 import {
   ActionRowBuilder,
   ApplicationCommandType,
+  ApplicationIntegrationType,
   ContextMenuCommandBuilder,
+  InteractionContextType,
   MessageComponentInteraction,
   MessageContextMenuCommandInteraction,
   StringSelectMenuBuilder,
@@ -48,8 +50,11 @@ async function selectUrl(interaction: MessageContextMenuCommandInteraction, urls
 }
 
 export default {
-  data: new ContextMenuCommandBuilder().setName("Download Media from URL").setType(ApplicationCommandType.Message),
-  isUserCommand: true,
+  data: new ContextMenuCommandBuilder()
+    .setName("Download Media from URL")
+    .setType(ApplicationCommandType.Message)
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   async execute(
     interaction: MessageContextMenuCommandInteraction,
     client: ExtendedClient,
@@ -60,7 +65,7 @@ export default {
     // If the target message has no channel, we can't reply to it
     ephemeral ||= !interaction.targetMessage.channel;
 
-    let urls = message.content.match(urlRegex);
+    const urls = message.content.match(urlRegex);
 
     if (!urls) {
       interaction.reply(errorMessage("No URLs found in message!"));

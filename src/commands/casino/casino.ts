@@ -1,5 +1,10 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ApplicationIntegrationType,
+  ChatInputCommandInteraction,
+  InteractionContextType,
+  SlashCommandBuilder,
+} from "discord.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -72,8 +77,9 @@ export default {
         .addStringOption(option =>
           option.setName("wager").setDescription("The amount of money to wager").setRequired(true),
         ),
-    ),
-  isUserCommand: true,
+    )
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const subcommand = interaction.options.getSubcommand();

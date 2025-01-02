@@ -168,8 +168,8 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
   let numRerolls = 0;
 
-  let excludeThreads: number[] = [];
-  let seenPostsCount: Record<number, number> = {};
+  const excludeThreads: number[] = [];
+  const seenPostsCount: Record<number, number> = {};
 
   const runResult = await run({
     board,
@@ -492,7 +492,7 @@ function createPostContent(
     description = description
       .replace(/https?:\/\/[^\s]+/g, hideLinkEmbed)
       .replace(/>>>\/(\w+)\/(\d+)/g, `[>>>/$1/$2](<https://boards.4chan.org/$1/thread/$2#p$2>)`)
-      .replace(/\>\>(\d+)/g, `[>>$1](<https://boards.4chan.org/${board}/thread/${thread.no}#p$1>)`)
+      .replace(/>>(\d+)/g, `[>>$1](<https://boards.4chan.org/${board}/thread/${thread.no}#p$1>)`)
       .replace(/\n/g, "\n> ");
 
     description = `> ${description}`;

@@ -1,5 +1,11 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ApplicationIntegrationType,
+  AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  InteractionContextType,
+  SlashCommandBuilder,
+} from "discord.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,7 +36,9 @@ export default {
             )
             .setRequired(false),
         ),
-    ),
+    )
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   // .addSubcommand(subcommand =>
   //   subcommand
   //     .setName("reddit")
@@ -77,7 +85,7 @@ export default {
   //       option.setName("user").setDescription("The user to get a video from").setRequired(true),
   //     ),
   // )
-  isUserCommand: true,
+
   async autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
     const subcommand = interaction.options.getSubcommand();
 

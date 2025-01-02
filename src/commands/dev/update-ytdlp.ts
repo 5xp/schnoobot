@@ -1,5 +1,5 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { simpleEmbed, errorMessage } from "@common/reply-utils";
+import { errorMessage, simpleEmbed } from "@common/reply-utils";
 import { ChatInputCommandInteraction } from "discord.js";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {

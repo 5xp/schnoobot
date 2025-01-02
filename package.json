@@ -11,12 +11,13 @@
     "deploy:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js --global",
     "clear:guild": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js",
     "clear:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/clear-commands.js --global",
-    "drizzle:push": "npx drizzle-kit push"
+    "drizzle:push": "npx drizzle-kit push",
+    "lint": "eslint ./src --ext .ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
     "cross-env": "^7.0.3",
-    "discord.js": "^14.14.1",
+    "discord.js": "^14.17.2",
     "dotenv": "^16.3.1",
     "drizzle-orm": "^0.38.2",
     "fuzzysort": "^3.0.2",
@@ -33,12 +34,13 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/jsdom": "^21.1.6",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^20.11.0",
+    "@types/node": "^22.10.3",
     "@types/numeral": "^2.0.5",
     "@types/turndown": "^5.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
     "drizzle-kit": "^0.30.1",
     "eslint": "^8.56.0",
-    "prettier": "^2.8.8",
+    "prettier": "^3.4.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.5.3"

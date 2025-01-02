@@ -2,23 +2,24 @@ import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
   ActionRowBuilder,
+  ApplicationIntegrationType,
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
   Guild,
   GuildPremiumTier,
+  InteractionContextType,
   MessageContextMenuCommandInteraction,
   SlashCommandBuilder,
-  bold,
   codeBlock,
   hideLinkEmbed,
   hyperlink,
 } from "discord.js";
+import { ENV } from "env";
+import { readFile, unlink } from "fs/promises";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 import { getMessage } from "./site-embeds";
-import { unlink, readFile } from "fs/promises";
-import { ENV } from "env";
 
 export const urlRegex =
   /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -32,8 +33,9 @@ export default {
     )
     .addBooleanOption(option =>
       option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
-    ),
-  isUserCommand: true,
+    )
+    .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+    .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
   async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
     const url = interaction.options.getString("url", true);
     const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;

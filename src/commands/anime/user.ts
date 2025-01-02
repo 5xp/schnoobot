@@ -32,7 +32,7 @@ export async function autocomplete(interaction: AutocompleteInteraction, client:
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
   const username = interaction.options.getString("username", false);
-  const discordUser = !username ? interaction.options.getUser("discord-user", false) ?? interaction.user : undefined;
+  const discordUser = !username ? (interaction.options.getUser("discord-user", false) ?? interaction.user) : undefined;
   const isSelf = discordUser && discordUser.id === interaction.user.id;
   const selfAccessToken = await getAniListAccessToken(interaction.user.id);
 

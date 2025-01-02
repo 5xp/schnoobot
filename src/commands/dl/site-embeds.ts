@@ -1,7 +1,7 @@
+import { applicationEmojis } from "@common/ExtendedClient";
 import { ColorResolvable, EmbedBuilder, hideLinkEmbed, hyperlink } from "discord.js";
-import { Payload } from "youtube-dl-exec";
 import numeral from "numeral";
-import ExtendedClient, { applicationEmojis } from "@common/ExtendedClient";
+import { Payload } from "youtube-dl-exec";
 
 interface MessageStrategy {
   (options: StrategyOptions): string;

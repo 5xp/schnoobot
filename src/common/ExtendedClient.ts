@@ -7,11 +7,11 @@ import {
   RESTPostAPIChatInputApplicationCommandsJSONBody,
   Routes,
 } from "discord.js";
+import { RawEmojiData } from "discord.js/typings/rawDataTypes";
 import { ENV } from "env";
 import fs from "fs";
 import path from "path";
 import Command from "./Command";
-import { RawEmojiData } from "discord.js/typings/rawDataTypes";
 
 export const applicationEmojis = new Collection<string, string>();
 
@@ -85,26 +85,18 @@ export default class ExtendedClient extends Client {
     commandsCollection.forEach(command => {
       if (command.devOnly && options.global) return;
 
-      let json = command.data.toJSON();
-
-      // Temporary hack for enabling user commands
-      if (command.isUserCommand) {
-        // @ts-ignore
-        json = { ...json, integration_types: [0, 1], contexts: [0, 1, 2] };
-      }
+      const json = command.data.toJSON();
 
       commands.push(json);
     });
 
     console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
-    let data: any;
-
     if (options.global) {
-      data = await rest.put(Routes.applicationCommands(ENV.CLIENT_ID), { body: commands });
+      await rest.put(Routes.applicationCommands(ENV.CLIENT_ID), { body: commands });
       return "Successfully deployed global commands.";
     } else {
-      data = await rest.put(Routes.applicationGuildCommands(ENV.CLIENT_ID, options.guildId), { body: commands });
+      await rest.put(Routes.applicationGuildCommands(ENV.CLIENT_ID, options.guildId), { body: commands });
       return `Successfully deployed guild commands to ${options.guildId}.`;
     }
   }

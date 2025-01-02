@@ -4,11 +4,11 @@
   "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "parserOptions": {
     "ecmaVersion": 2016,
-    "sourceType": "module"
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
   "rules": {
     "camelcase": "error",
-    "consistent-casing-in-filename": ["error", "PascalCase"],
     "import/extensions": "off",
     "import/no-extraneous-dependencies": "off",
     "import/prefer-default-export": "off"
@@ -25,7 +25,8 @@
       "files": ["*.ts", "*.tsx"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/explicit-module-boundary-types": "off"
+        "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/no-deprecated": "warn"
       }
     }
   ]

@@ -1,6 +1,6 @@
 import Currency from "@common/Currency";
-import { ClaimDailyResult, handleClaimDaily } from "@db/services";
 import ExtendedClient from "@common/ExtendedClient";
+import { ClaimDailyResult, handleClaimDaily } from "@db/services";
 import { ChatInputCommandInteraction, EmbedBuilder, EmbedField, TimestampStyles, bold, time } from "discord.js";
 const formatter = new Intl.RelativeTimeFormat("en", { style: "short" });
 

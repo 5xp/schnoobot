@@ -26,7 +26,7 @@ export default class Paginator {
    * @returns an array of strings, where the length of each string is within the threshold
    */
   getPages(sections: string[]): string[] {
-    let pages: string[] = [];
+    const pages: string[] = [];
     let currentPage = "";
     let currentSectionIndex = 0;
 

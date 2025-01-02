@@ -179,7 +179,7 @@ class MineGrid {
     const currentProfitString = `${Currency.format(currentProfit)} (${currentMultiplier.toFixed(2)}x)`;
     const nextProfitString = `${Currency.format(nextProfit)} (${nextMultiplier.toFixed(2)}x)`;
 
-    let embed = new EmbedBuilder()
+    const embed = new EmbedBuilder()
       .setTitle(`${this.mineStyle.emoji} Mines`)
       .addFields(
         { name: bold("Mines"), value: this.numMines.toString(), inline: true },

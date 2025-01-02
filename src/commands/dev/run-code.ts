@@ -1,5 +1,4 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { errorMessage } from "@common/reply-utils";
 import {
   ActionRowBuilder,
   AttachmentBuilder,
@@ -9,7 +8,6 @@ import {
   ModalSubmitInteraction,
   TextInputBuilder,
   TextInputStyle,
-  bold,
   codeBlock,
 } from "discord.js";
 
