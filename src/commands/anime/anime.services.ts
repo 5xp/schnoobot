@@ -3,10 +3,9 @@ import { Colors, EmbedBuilder, hyperlink, time, User } from "discord.js";
 import { ENV } from "env";
 import jwt from "jsonwebtoken";
 import NodeCache from "node-cache";
+import { z } from "zod";
 import {
   Anime,
-  ListActivity,
-  listActivityHistoryApiResponseSchema,
   animeApiResponseSchema,
   AnimeSearchResult,
   animeSearchResultApiResponseSchema,
@@ -14,7 +13,12 @@ import {
   animeUserApiResponseSchema,
   AnimeUserSearchResult,
   animeUserSearchResultApiResponseSchema,
+  ListActivity,
+  listActivityHistoryApiResponseSchema,
   MediaFormat,
+  MediaListEntry,
+  mediaListEntryApiResponseSchema,
+  MediaListStatus,
 } from "./anime.schema";
 
 const animeSearchCache = new NodeCache({ stdTTL: 60 * 60 * 12, checkperiod: 60 * 60 });
@@ -86,7 +90,7 @@ export async function getAnime(id?: number, query?: string, accessToken?: string
 
   const apiQuery = `
   query GetAnime($mediaId: Int, $search: String)  {
-    Media(id: $mediaId, search: $search) {
+    Media(id: $mediaId, search: $search, type: ANIME) {
       id
       title {
         romaji
@@ -116,6 +120,17 @@ export async function getAnime(id?: number, query?: string, accessToken?: string
       episodes
       bannerImage
       genres
+      mediaListEntry {
+        status
+        progress
+        repeat
+        score(format: POINT_100)
+        completedAt {
+          year
+          month
+          day
+        }
+      }
     }
   }`;
 
@@ -138,6 +153,106 @@ export async function getAnime(id?: number, query?: string, accessToken?: string
   animeCache.set(result.id, result);
 
   return result;
+}
+
+export async function getListEntry(
+  userId: number,
+  animeId: number,
+  accessToken?: string,
+): Promise<MediaListEntry | undefined> {
+  const apiQuery = `
+  query GetListEntry($userId: Int, $mediaId: Int) {
+    MediaList(userId: $userId, mediaId: $mediaId) {
+      id
+      status
+      progress
+      repeat
+      score(format: POINT_100)
+      startedAt {
+        year
+        month
+        day
+      }
+      completedAt {
+        year
+        month
+        day
+      }
+      createdAt
+    }
+  }`;
+
+  const variables = {
+    userId,
+    mediaId: animeId,
+  };
+
+  const json = await queryAniList(apiQuery, variables, accessToken);
+
+  const parseResult = mediaListEntryApiResponseSchema.nullable().safeParse(json);
+
+  if (!parseResult.success) {
+    console.error(JSON.stringify(json, null, 2));
+    console.error(parseResult.error);
+    return;
+  }
+
+  const result = parseResult.data?.data.MediaList;
+
+  if (!result) {
+    return;
+  }
+
+  return result;
+}
+
+export async function updateListEntry(animeId: number, status: MediaListStatus, accessToken: string): Promise<boolean> {
+  const apiQuery = `
+  mutation UpdateListEntry($mediaId: Int, $status: MediaListStatus) {
+    SaveMediaListEntry(mediaId: $mediaId, status: $status) {
+      id
+    }
+  }`;
+
+  const variables = {
+    mediaId: animeId,
+    status,
+  };
+
+  const json = await queryAniList(apiQuery, variables, accessToken);
+
+  return !!json.data.SaveMediaListEntry.id;
+}
+
+export async function deleteListEntry(entryId: number, accessToken: string): Promise<boolean> {
+  const apiQuery = `
+  mutation DeleteListEntry($entryId: Int) {
+    DeleteMediaListEntry(id: $entryId) {
+      deleted
+    }
+  }`;
+
+  const variables = {
+    entryId,
+  };
+
+  const json = await queryAniList(apiQuery, variables, accessToken);
+
+  const parseResult = z
+    .object({
+      data: z.object({
+        DeleteMediaListEntry: z.object({
+          deleted: z.boolean(),
+        }),
+      }),
+    })
+    .safeParse(json);
+
+  if (!parseResult.success) {
+    return false;
+  }
+
+  return json.data.DeleteMediaListEntry.deleted;
 }
 
 export async function searchUsers(query: string): Promise<AnimeUserSearchResult[]> {
@@ -309,16 +424,14 @@ export async function getUserLastActivity(userId: number): Promise<ListActivity 
   return result;
 }
 
-export function extractUserIdFromAccessToken(accessToken: string): number | undefined {
+export function extractUserIdFromAccessToken(accessToken: string): number {
   const decodedToken = jwt.decode(accessToken);
 
-  if (!decodedToken || typeof decodedToken !== "object") {
-    return;
+  if (!decodedToken || typeof decodedToken !== "object" || !decodedToken.sub) {
+    throw new Error("Invalid access token");
   }
 
-  if (decodedToken.sub) {
-    return parseInt(decodedToken.sub);
-  }
+  return parseInt(decodedToken.sub);
 }
 
 function formatDate(date: { year: number | null; month: number | null; day: number | null }): string | null {
@@ -329,7 +442,7 @@ function formatDate(date: { year: number | null; month: number | null; day: numb
   return `${date.month ?? "??"}/${date.day ?? "??"}/${date.year ?? "????"}`;
 }
 
-export function getAnimeEmbed(anime: Anime): EmbedBuilder {
+export function getAnimeEmbed(anime: Anime, listEntry?: MediaListEntry): EmbedBuilder {
   const joinWithSeparator = (parts: (string | null)[], separator = " • ") => parts.filter(Boolean).join(separator);
 
   const titleParts = [
@@ -344,6 +457,7 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
   if (anime.format || anime.genres.length) {
     const meta = joinWithSeparator([
       anime.format ? formatNameMap[anime.format] : null,
+      anime.episodes ? `${anime.episodes} episode${anime.episodes > 1 ? "s" : ""}` : null,
       anime.genres.length ? anime.genres.join(", ") : null,
     ]);
     if (meta) descriptionParts.push(`-# ${meta}`);
@@ -353,8 +467,19 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
     descriptionParts.push(fixHTML(removeHTML(anime.description)));
   }
 
-  if (anime.episodes) {
-    descriptionParts.push(`-# ${anime.episodes} episode${anime.episodes > 1 ? "s" : ""}`);
+  if (listEntry) {
+    const completedAt = formatDate(listEntry.completedAt);
+    const { repeat, progress } = listEntry;
+    const entryPart = joinWithSeparator(
+      [
+        completedAt ? `📅 Completed ${completedAt}` : null,
+        progress ? `📝 Watched ${progress}/${anime.episodes}` : null,
+        repeat ? `🔁 ${repeat} rewatch${repeat > 1 ? "es" : ""}` : null,
+        listEntry.score ? `⭐ You rated ${listEntry.score}/100` : null,
+      ],
+      " ",
+    );
+    if (entryPart) descriptionParts.push(`-# ${entryPart}`);
   }
 
   const description = truncateString(descriptionParts.join("\n\n").trim(), 4096);
@@ -367,7 +492,7 @@ export function getAnimeEmbed(anime: Anime): EmbedBuilder {
   );
 
   const footer = joinWithSeparator([
-    statusNameMap[anime.status],
+    mediaStatusMap[anime.status],
     dateParts,
     anime.meanScore ? `⭐${anime.meanScore}/100` : null,
   ]);
@@ -447,7 +572,7 @@ export function getAnimeUserEmbed(user: AnimeUser, activity: ListActivity | null
     )
     .setTitle(title)
     .setURL(`https://anilist.co/user/${user.id}`)
-    .setDescription(description)
+    .setDescription(description || null)
     .setColor(color)
     .setThumbnail(user.avatar.large)
     .setFooter({ text: `📅 Joined ${createdDate.toDateString().slice(4)}` });
@@ -525,12 +650,21 @@ export const formatNameMap: Record<MediaFormat, string> = {
   ONE_SHOT: "One Shot",
 };
 
-export const statusNameMap: Record<string, string> = {
+export const mediaStatusMap: Record<string, string> = {
   FINISHED: "✅ Finished",
   RELEASING: "📅 Releasing",
   NOT_YET_RELEASED: "🔜 Not Yet Released",
   CANCELLED: "❌ Cancelled",
   HIATUS: "⏸️ Hiatus",
+};
+
+export const mediaListStatusMap: Record<string, string> = {
+  CURRENT: "Watching",
+  PLANNING: "Planning",
+  COMPLETED: "Completed",
+  DROPPED: "Dropped",
+  PAUSED: "Paused",
+  REPEATING: "Repeating",
 };
 
 function removeHTML(text: string): string {

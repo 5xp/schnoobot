@@ -19,7 +19,9 @@ const mediaStatusEnum = z.enum(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CA
 
 type MediaStatus = z.infer<typeof mediaStatusEnum>;
 
-const mediaListStatusEnum = z.enum(["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]);
+export const mediaListStatusEnum = z.enum(["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]);
+
+export type MediaListStatus = z.infer<typeof mediaListStatusEnum>;
 
 export const fuzzyDateSchema = z.object({
   year: z.number().nullable(),
@@ -28,12 +30,25 @@ export const fuzzyDateSchema = z.object({
 });
 
 export const mediaListEntrySchema = z.object({
-  startedAt: fuzzyDateSchema.nullable(),
-  completedAt: fuzzyDateSchema.nullable(),
-  createdAt: z.number(),
-  progress: z.number(),
+  id: z.number(),
   status: mediaListStatusEnum,
+  repeat: z.number(),
+  progress: z.number(),
+  score: z.number().nullable(),
+  startedAt: fuzzyDateSchema,
+  completedAt: fuzzyDateSchema,
+  createdAt: z.number(),
 });
+
+export type MediaListEntry = z.infer<typeof mediaListEntrySchema>;
+
+export const mediaListEntryApiResponseSchema = z.object({
+  data: z.object({
+    MediaList: mediaListEntrySchema.nullable(),
+  }),
+});
+
+type MediaListEntryApiResponse = z.infer<typeof mediaListEntryApiResponseSchema>;
 
 export const titleSchema = z.object({
   romaji: z.string().nullable(),
@@ -48,7 +63,7 @@ export const mediaSchema = z.object({
   meanScore: z.number().nullable(),
   isAdult: z.boolean(),
   format: mediaFormatEnum.nullable(),
-  description: z.string(),
+  description: z.string().nullable(),
   episodes: z.number().nullable(),
   status: mediaStatusEnum,
   genres: z.array(z.string()),
@@ -59,7 +74,6 @@ export const mediaSchema = z.object({
     color: z.string().nullable(),
     extraLarge: z.string(),
   }),
-  mediaListEntry: mediaListEntrySchema.nullable(),
 });
 
 const animeSearchResultSchema = mediaSchema.pick({

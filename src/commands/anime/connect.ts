@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   ChatInputCommandInteraction,
   ComponentType,
+  MessageComponentInteraction,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -15,7 +16,7 @@ import { ENV } from "env";
 import { getAccessToken } from "./anime.services";
 
 export default async function execute(
-  interaction: ChatInputCommandInteraction,
+  interaction: ChatInputCommandInteraction | MessageComponentInteraction,
   client: ExtendedClient,
   cameFromOtherAction = false,
 ) {
@@ -24,6 +25,10 @@ export default async function execute(
   if (!clientId || !redirectUri) {
     await interaction.reply(errorMessage("AniList credentials are not configured"));
     return;
+  }
+
+  if (!interaction.deferred) {
+    await interaction.deferReply({ ephemeral: true });
   }
 
   let hasConnected = false;
@@ -41,7 +46,12 @@ export default async function execute(
     new ButtonBuilder().setStyle(ButtonStyle.Primary).setLabel("2. Enter Code").setCustomId("aniListConnect"),
   );
 
-  const response = await interaction.reply({ embeds: [embed], components: [linkRow, authorizeRow], ephemeral: true });
+  const response = await interaction.followUp({
+    embeds: [embed],
+    components: [linkRow, authorizeRow],
+    ephemeral: true,
+    fetchReply: true,
+  });
 
   const buttonCollector = response.createMessageComponentCollector({
     componentType: ComponentType.Button,
