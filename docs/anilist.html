@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extract Code Parameter</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #dedede;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #121212;
+      }
+
+      .container {
+        text-align: center;
+        background: #222222;
+        padding: 1.25rem;
+        border-radius: 1rem;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+      }
+
+      input {
+        font-family: inherit;
+        font-size: 16px;
+        color: inherit;
+        width: 90%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #3b3b3b;
+        border-radius: 0.25rem;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+        background-color: #2c2c2c;
+      }
+
+      button {
+        font-family: inherit;
+        font-size: 16px;
+        color: #fff;
+        padding: 10px 20px;
+        background-color: #007bff;
+        border: none;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AniList Code</h1>
+      <p>Copy the code below and paste it into the bot.</p>
+      <input type="text" id="codeTextbox" readonly />
+      <button onclick="copyToClipboard()">Copy to Clipboard</button>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+
+      const codeTextbox = document.getElementById("codeTextbox");
+      codeTextbox.value = params.get("code") || "";
+
+      function copyToClipboard() {
+        codeTextbox.select();
+        codeTextbox.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+      }
+    </script>
+  </body>
+</html>
