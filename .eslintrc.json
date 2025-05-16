@@ -1,33 +1,33 @@
 {
-  "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
-  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
-  "parserOptions": {
-    "ecmaVersion": 2016,
-    "sourceType": "module",
-    "project": "./tsconfig.json"
-  },
-  "rules": {
-    "camelcase": "error",
-    "import/extensions": "off",
-    "import/no-extraneous-dependencies": "off",
-    "import/prefer-default-export": "off"
-  },
-  "settings": {
-    "import/resolver": {
-      "node": {
-        "extensions": [".js", ".jsx", ".ts", ".tsx"]
-      }
-    }
-  },
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx"],
-      "rules": {
-        "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/explicit-module-boundary-types": "off",
-        "@typescript-eslint/no-deprecated": "warn"
-      }
-    }
-  ]
+	"parser": "@typescript-eslint/parser",
+	"plugins": ["@typescript-eslint"],
+	"extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+	"parserOptions": {
+		"ecmaVersion": 2016,
+		"sourceType": "module",
+		"project": "./tsconfig.json"
+	},
+	"rules": {
+		"camelcase": "error",
+		"import/extensions": "off",
+		"import/no-extraneous-dependencies": "off",
+		"import/prefer-default-export": "off"
+	},
+	"settings": {
+		"import/resolver": {
+			"node": {
+				"extensions": [".js", ".jsx", ".ts", ".tsx"]
+			}
+		}
+	},
+	"overrides": [
+		{
+			"files": ["*.ts", "*.tsx"],
+			"rules": {
+				"@typescript-eslint/no-explicit-any": "off",
+				"@typescript-eslint/explicit-module-boundary-types": "off",
+				"@typescript-eslint/no-deprecated": "warn"
+			}
+		}
+	]
 }

@@ -4,12 +4,12 @@ import { ChatInputCommandInteraction } from "discord.js";
 import { run, urlRegex } from "../dl/dl";
 
 export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
-  const url = interaction.options.getString("url", true);
+	const url = interaction.options.getString("url", true);
 
-  if (!url.match(urlRegex)) {
-    interaction.reply(errorMessage("Invalid URL."));
-    return;
-  }
+	if (!url.match(urlRegex)) {
+		interaction.reply(errorMessage("Invalid URL."));
+		return;
+	}
 
-  run({ interaction, url, ephemeral: true, jsonOnly: true });
+	run({ interaction, url, ephemeral: true, jsonOnly: true });
 }

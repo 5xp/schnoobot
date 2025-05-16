@@ -7,7 +7,7 @@ const global = args.includes("--global");
 const guildId = ENV.GUILD_ID;
 
 if (!global && !guildId) {
-  throw new Error("Guild ID not found in environment variables.");
+	throw new Error("Guild ID not found in environment variables.");
 }
 
 const options = global ? { global } : { global, guildId: guildId! };

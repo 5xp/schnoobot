@@ -1,40 +1,40 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - master
+    push:
+        branches:
+            - master
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v1
-        with:
-          node-version: 20
+            - name: Setup Node.js
+              uses: actions/setup-node@v1
+              with:
+                  node-version: 20
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Build
-        run: npm run build
+            - name: Build
+              run: npm run build
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Deploy using ssh
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            ./schnoobot-deploy.sh
+        steps:
+            - name: Deploy using ssh
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.SSH_HOST }}
+                  username: ${{ secrets.SSH_USER }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  port: 22
+                  script: |
+                      ./schnoobot-deploy.sh
