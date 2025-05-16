@@ -11,6 +11,7 @@ import {
 	GuildPremiumTier,
 	InteractionContextType,
 	MessageContextMenuCommandInteraction,
+	MessageFlags,
 	SlashCommandBuilder,
 	codeBlock,
 	hideLinkEmbed,
@@ -19,7 +20,7 @@ import {
 import { ENV } from "env";
 import { readFile, unlink } from "fs/promises";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
-import { getMessage } from "./site-embeds";
+import { getContainer, getMessage } from "./site-embeds";
 
 export const urlRegex =
 	/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -176,23 +177,32 @@ async function createReply(
 		});
 	} else {
 		const filename: string = (payload as any).filename; // the typings are wrong
-		attachment = new AttachmentBuilder(filename);
+		attachment = new AttachmentBuilder(filename, {
+			name: filename.split("/").pop(),
+		});
+	}
+
+	if (!attachment.name) {
+		throw new Error("Attachment name is undefined");
 	}
 
 	if (interaction.isContextMenuCommand() && !ephemeral) {
-		const message = getMessage({ jsonDump: payload, useEmoji: false });
+		const container = getContainer({ jsonDump: payload, useEmoji: false }, attachment.name);
+
 		await interaction.targetMessage.reply({
-			content: "" + "\n" + message,
+			components: [container],
 			files: [attachment],
 			allowedMentions: { repliedUser: false },
+			flags: MessageFlags.IsComponentsV2,
 		});
 
 		interaction.deleteReply();
 	} else {
-		const message = getMessage({ jsonDump: payload, useEmoji: true });
+		const container = getContainer({ jsonDump: payload, useEmoji: true }, attachment.name);
 		await interaction.editReply({
-			content: message,
+			components: [container],
 			files: [attachment],
+			flags: MessageFlags.IsComponentsV2,
 		});
 	}
 }

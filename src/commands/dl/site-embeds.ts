@@ -1,5 +1,14 @@
 import { applicationEmojis } from "@common/ExtendedClient";
-import { ColorResolvable, EmbedBuilder, hideLinkEmbed, hyperlink } from "discord.js";
+import {
+	AttachmentBuilder,
+	ColorResolvable,
+	ContainerBuilder,
+	EmbedBuilder,
+	hideLinkEmbed,
+	hyperlink,
+	MediaGalleryBuilder,
+	TextDisplayBuilder,
+} from "discord.js";
 import numeral from "numeral";
 import { Payload } from "youtube-dl-exec";
 
@@ -116,4 +125,30 @@ function createMessage(label: string, url: string, secondaryLabel: string): stri
 export function getMessage(options: StrategyOptions): string {
 	const messageStrategy = messageStrategies[options.jsonDump.extractor.toLowerCase()] ?? messageStrategies["default"];
 	return messageStrategy(options);
+}
+
+export function getContainer(options: StrategyOptions, filename: string): ContainerBuilder {
+	const container = new ContainerBuilder();
+
+	const message = getMessage(options).split("\n");
+
+	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(message[0]));
+
+	const mediaComponent = new MediaGalleryBuilder({
+		items: [
+			{
+				media: {
+					url: `attachment://${filename}`,
+				},
+			},
+		],
+	});
+
+	container.addMediaGalleryComponents(mediaComponent);
+
+	if (message.length > 1) {
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(message[1]));
+	}
+
+	return container;
 }
