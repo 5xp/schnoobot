@@ -93,8 +93,12 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 
 	try {
 		output = await tryDownload(url, options);
+		const error = detectAbortion(output);
+		if (error) {
+			throw new Error(error);
+		}
 		const fileContents = await readFile(`./temp/${interaction.id}.info.json`, "utf-8").catch(() => {
-			throw new Error(detectAbortion(output));
+			throw new Error(error ?? "Unknown error occurred.");
 		});
 		payload = JSON.parse(fileContents) as Payload;
 	} catch (error) {
@@ -141,7 +145,7 @@ async function tryDownload(url: string, options: Flags): Promise<string> {
 	}
 }
 
-function detectAbortion(stdout: string): string {
+function detectAbortion(stdout: string): string | undefined {
 	const lines = stdout.split("\n");
 
 	for (const line of lines) {
@@ -158,8 +162,6 @@ function detectAbortion(stdout: string): string {
 			return "Downloading livestreams or playlists is not supported.";
 		}
 	}
-
-	return "Unknown error occurred.";
 }
 
 async function createReply(
