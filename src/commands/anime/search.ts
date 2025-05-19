@@ -9,14 +9,19 @@ import {
 	ChatInputCommandInteraction,
 	ComponentType,
 	MessageComponentInteraction,
+	MessageFlags,
+	SectionBuilder,
+	SeparatorSpacingSize,
+	TextDisplayBuilder,
 } from "discord.js";
 import { Anime, MediaListEntry, mediaListStatusEnum } from "./anime.schema";
 import {
 	deleteListEntry,
 	extractUserIdFromAccessToken,
+	formatDate,
 	formatEmojiMap,
 	getAnime,
-	getAnimeEmbed,
+	getAnimeContainer,
 	getListEntry,
 	getTitle,
 	mediaListStatusMap,
@@ -76,17 +81,45 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
 	const listEntry = aniListUserId ? await getListEntry(aniListUserId, anime.id) : undefined;
 
-	const embed = getAnimeEmbed(anime, listEntry);
+	const container = getAnimeContainer(anime, listEntry);
 
 	const listButton = new ButtonBuilder()
 		.setCustomId("list")
-		.setLabel(listEntry ? mediaListStatusMap[listEntry.status] : "Add to list")
+		.setLabel(listEntry ? "Edit entry" : "Add to list")
 		.setEmoji("📝")
 		.setStyle(ButtonStyle.Secondary);
 
-	const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(listButton);
+	let statusString = "This anime is not in your list.";
+	if (listEntry) {
+		const joinWithSeparator = (parts: (string | null)[], separator = " • ") =>
+			parts.filter(Boolean).join(separator);
+		const completedAt = formatDate(listEntry.completedAt);
+		const { repeat, progress } = listEntry;
+		statusString = joinWithSeparator(
+			[
+				["CURRENT", "COMPLETED"].includes(listEntry.status)
+					? null
+					: "Status: " + mediaListStatusMap[listEntry.status],
+				completedAt ? `Completed ${completedAt}` : null,
+				!completedAt && progress ? `Watched ${progress}/${anime.episodes} episodes` : null,
+				repeat ? `${repeat} rewatch${repeat > 1 ? "es" : ""}` : null,
+				listEntry.score ? `You rated ${listEntry.score}/100` : null,
+			],
+			" • ",
+		);
+	}
 
-	const response = await interaction.reply({ embeds: [embed], components: [actionRow] });
+	container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Large));
+
+	const statusTextDisplay = new TextDisplayBuilder().setContent(statusString);
+	container.addSectionComponents(
+		new SectionBuilder().addTextDisplayComponents(statusTextDisplay).setButtonAccessory(listButton),
+	);
+
+	const response = await interaction.reply({
+		components: [container],
+		flags: MessageFlags.IsComponentsV2,
+	});
 
 	const componentInteractionCollector = response.createMessageComponentCollector({
 		componentType: ComponentType.Button,
@@ -98,7 +131,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
 	componentInteractionCollector.on("end", () => {
 		listButton.setDisabled(true);
-		response.edit({ components: [actionRow] }).catch(() => null);
+		response.edit({ components: [container] }).catch(() => null);
 	});
 }
 

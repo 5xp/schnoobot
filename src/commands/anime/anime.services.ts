@@ -1,5 +1,15 @@
 import { truncateString } from "@common/reply-utils";
-import { Colors, EmbedBuilder, hyperlink, time, User } from "discord.js";
+import {
+	Colors,
+	ContainerBuilder,
+	EmbedBuilder,
+	hyperlink,
+	MediaGalleryBuilder,
+	SeparatorSpacingSize,
+	TextDisplayBuilder,
+	time,
+	User,
+} from "discord.js";
 import { ENV } from "env";
 import jwt from "jsonwebtoken";
 import NodeCache from "node-cache";
@@ -434,25 +444,27 @@ export function extractUserIdFromAccessToken(accessToken: string): number {
 	return parseInt(decodedToken.sub);
 }
 
-function formatDate(date: { year: number | null; month: number | null; day: number | null }): string | null {
+export function formatDate(date: { year: number | null; month: number | null; day: number | null }): string | null {
 	if (!date.year && !date.month && !date.day) {
 		return null;
+	}
+
+	if (!date.month && !date.day) {
+		return `${date.year}`;
 	}
 
 	return `${date.month ?? "??"}/${date.day ?? "??"}/${date.year ?? "????"}`;
 }
 
-export function getAnimeEmbed(anime: Anime, listEntry?: MediaListEntry): EmbedBuilder {
+export function getAnimeContainer(anime: Anime, listEntry?: MediaListEntry): ContainerBuilder {
 	const joinWithSeparator = (parts: (string | null)[], separator = " • ") => parts.filter(Boolean).join(separator);
 
 	const titleParts = [
 		anime.format ? formatEmojiMap[anime.format] : null,
-		getTitle(anime.title),
+		hyperlink(getTitle(anime.title), `https://anilist.co/anime/${anime.id}`),
 		anime.isAdult ? "🔞" : null,
 	];
-	const title = joinWithSeparator(titleParts, " ");
-
-	const descriptionParts: string[] = [];
+	let title = "## " + joinWithSeparator(titleParts, " ");
 
 	if (anime.format || anime.genres.length) {
 		const meta = joinWithSeparator([
@@ -460,26 +472,13 @@ export function getAnimeEmbed(anime: Anime, listEntry?: MediaListEntry): EmbedBu
 			anime.episodes ? `${anime.episodes} episode${anime.episodes > 1 ? "s" : ""}` : null,
 			anime.genres.length ? anime.genres.join(", ") : null,
 		]);
-		if (meta) descriptionParts.push(`-# ${meta}`);
+		if (meta) title += `\n-# ${meta}`;
 	}
+
+	const descriptionParts: string[] = [];
 
 	if (anime.description) {
 		descriptionParts.push(fixHTML(removeHTML(anime.description)));
-	}
-
-	if (listEntry) {
-		const completedAt = formatDate(listEntry.completedAt);
-		const { repeat, progress } = listEntry;
-		const entryPart = joinWithSeparator(
-			[
-				completedAt ? `📅 Completed ${completedAt}` : null,
-				progress ? `📝 Watched ${progress}/${anime.episodes}` : null,
-				repeat ? `🔁 ${repeat} rewatch${repeat > 1 ? "es" : ""}` : null,
-				listEntry.score ? `⭐ You rated ${listEntry.score}/100` : null,
-			],
-			" ",
-		);
-		if (entryPart) descriptionParts.push(`-# ${entryPart}`);
 	}
 
 	const description = truncateString(descriptionParts.join("\n\n").trim(), 4096);
@@ -491,20 +490,51 @@ export function getAnimeEmbed(anime: Anime, listEntry?: MediaListEntry): EmbedBu
 		" - ",
 	);
 
-	const footer = joinWithSeparator([
-		mediaStatusMap[anime.status],
-		dateParts,
-		anime.meanScore ? `⭐${anime.meanScore}/100` : null,
-	]);
+	const footer =
+		"-# " +
+		joinWithSeparator([
+			"" + mediaStatusMap[anime.status],
+			"📅 " + dateParts,
+			anime.meanScore ? `⭐ ${anime.meanScore}/100` : null,
+		]);
 
-	return new EmbedBuilder()
-		.setTitle(title)
-		.setURL(`https://anilist.co/anime/${anime.id}`)
-		.setDescription(description)
-		.setColor(anime.coverImage.color as `#${string}`)
-		.setImage(anime.coverImage.extraLarge)
-		.setFooter({ text: footer })
-		.setThumbnail(anime.bannerImage);
+	const container = new ContainerBuilder();
+
+	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(title));
+	container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+	if (anime.bannerImage) {
+		container.addMediaGalleryComponents(
+			new MediaGalleryBuilder({
+				items: [
+					{
+						media: {
+							url: anime.bannerImage,
+						},
+					},
+				],
+			}),
+		);
+	}
+
+	if (description) {
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(description));
+	}
+
+	container.addMediaGalleryComponents(
+		new MediaGalleryBuilder({
+			items: [
+				{
+					media: {
+						url: anime.coverImage.extraLarge,
+					},
+				},
+			],
+		}),
+	);
+
+	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
+
+	return container;
 }
 
 export function getAnimeUserEmbed(user: AnimeUser, activity: ListActivity | null, discordUser?: User): EmbedBuilder {
@@ -651,7 +681,7 @@ export const formatNameMap: Record<MediaFormat, string> = {
 };
 
 export const mediaStatusMap: Record<string, string> = {
-	FINISHED: "✅ Finished",
+	FINISHED: "✅ Finished Airing",
 	RELEASING: "📅 Releasing",
 	NOT_YET_RELEASED: "🔜 Not Yet Released",
 	CANCELLED: "❌ Cancelled",
