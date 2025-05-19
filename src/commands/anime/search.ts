@@ -1,12 +1,5 @@
 import ExtendedClient from "@common/ExtendedClient";
-import {
-	errorContainer,
-	errorContainerMessage,
-	errorEmbed,
-	errorMessage,
-	simpleEmbed,
-	truncateString,
-} from "@common/reply-utils";
+import { errorContainerMessage, errorEmbed, errorMessage, simpleEmbed, truncateString } from "@common/reply-utils";
 import { getAniListAccessToken } from "@db/services";
 import {
 	ActionRowBuilder,

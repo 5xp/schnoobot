@@ -4,7 +4,6 @@ import {
 	ButtonStyle,
 	Colors,
 	ContainerBuilder,
-	EmbedBuilder,
 	hyperlink,
 	MediaGalleryBuilder,
 	SectionBuilder,
