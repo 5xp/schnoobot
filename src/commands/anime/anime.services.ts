@@ -1,12 +1,16 @@
 import { truncateString } from "@common/reply-utils";
 import {
+	ButtonBuilder,
+	ButtonStyle,
 	Colors,
 	ContainerBuilder,
 	EmbedBuilder,
 	hyperlink,
 	MediaGalleryBuilder,
+	SectionBuilder,
 	SeparatorSpacingSize,
 	TextDisplayBuilder,
+	ThumbnailBuilder,
 	time,
 	User,
 } from "discord.js";
@@ -537,29 +541,69 @@ export function getAnimeContainer(anime: Anime, listEntry?: MediaListEntry): Con
 	return container;
 }
 
-export function getAnimeUserEmbed(user: AnimeUser, activity: ListActivity | null, discordUser?: User): EmbedBuilder {
+export function getAnimeUserContainer(
+	user: AnimeUser,
+	activity: ListActivity | null,
+	discordUser?: User,
+): ContainerBuilder {
 	const joinWithSeparator = (parts: (string | null)[], separator = " • ") => parts.filter(Boolean).join(separator);
 	const capitalizeFirstLetter = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-	const titleParts = [user.name];
-	const title = joinWithSeparator(titleParts, " ");
-
 	const descriptionParts = [];
+	const statsParts = [];
+
+	if (user.statistics.anime.count || user.statistics.anime.minutesWatched) {
+		const { value, unit } = largestTimeUnit(user.statistics.anime.minutesWatched * 60);
+		statsParts.push(`-# 📈 ${user.statistics.anime.count} Anime Watched • ⏱️ ${value} ${unit}s Watched`);
+	}
+	if (user.statistics.anime.genres.length) {
+		statsParts.push(
+			`-# 🎭 Top Genres: ${user.statistics.anime.genres.map(genre => `**${genre.genre}** (${genre.count})`).join(", ")}`,
+		);
+	}
+
+	const stats = joinWithSeparator(statsParts, "\n");
+
+	if (user.about) {
+		descriptionParts.push(fixHTML(removeHTML(user.about)));
+	}
+
+	const color = Colors[capitalizeFirstLetter(user.options.profileColor) as keyof typeof Colors] ?? Colors.Blurple;
+
+	const createdDate = new Date(user.createdAt * 1000);
+
+	const container = new ContainerBuilder();
+
+	const nameParts: string[] = [
+		"## " + hyperlink(user.name, `https://anilist.co/user/${user.id}`),
+		`-# Joined ${createdDate.toDateString().slice(4)}`,
+	];
 
 	if (user.isFollower || user.isFollowing) {
 		const following = joinWithSeparator([
 			user.isFollowing ? "Following" : null,
 			user.isFollower ? "Follows you" : null,
 		]);
-		if (following) descriptionParts.push(`-# ${following}`);
+		if (following) nameParts.push(`-# ${following}`);
 	}
 
-	if (user.statistics.anime.count || user.statistics.anime.minutesWatched) {
-		const { value, unit } = largestTimeUnit(user.statistics.anime.minutesWatched * 60);
-		descriptionParts.push(`📈 ${user.statistics.anime.count} Anime Watched • ⏱️ ${value} ${unit}s Watched`);
+	const usernameSection = new SectionBuilder()
+		.addTextDisplayComponents(new TextDisplayBuilder().setContent(nameParts.join("\n")))
+		.setThumbnailAccessory(new ThumbnailBuilder().setURL(user.avatar.large));
+
+	if (stats) {
+		usernameSection.addTextDisplayComponents(new TextDisplayBuilder().setContent(stats));
+	}
+
+	container.addSectionComponents(usernameSection);
+
+	if (user.about) {
+		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fixHTML(removeHTML(user.about))));
 	}
 
 	if (activity) {
+		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
 		const plural = activity.progress?.includes(" - ");
 		let lastWatched = `📝 Last ${activity.status}${plural ? "s" : ""}`;
 		if (activity.status !== "completed") {
@@ -569,43 +613,29 @@ export function getAnimeUserEmbed(user: AnimeUser, activity: ListActivity | null
 			getTitle(activity.media.title),
 			`https://anilist.co/anime/${activity.media.id}`,
 		)}** ${time(new Date(activity.createdAt * 1000), "R")}`;
-		descriptionParts.push(lastWatched);
+		const activitySection = new SectionBuilder()
+			.addTextDisplayComponents(new TextDisplayBuilder().setContent(lastWatched))
+			.setButtonAccessory(new ButtonBuilder().setCustomId("view").setLabel("View").setStyle(ButtonStyle.Primary));
+		container.addSectionComponents(activitySection);
 	}
 
-	if (user.statistics.anime.genres.length) {
-		descriptionParts.push(
-			[
-				"🎭 Top Genres",
-				"-# " + user.statistics.anime.genres.map(genre => `**${genre.genre}** (${genre.count})`).join(", "),
-			].join("\n"),
-		);
-	}
+	return container;
 
-	if (user.about) {
-		descriptionParts.push(fixHTML(removeHTML(user.about)));
-	}
-
-	const description = truncateString(descriptionParts.join("\n\n").trim(), 4096);
-
-	const color = Colors[capitalizeFirstLetter(user.options.profileColor) as keyof typeof Colors] ?? Colors.Blurple;
-
-	const createdDate = new Date(user.createdAt * 1000);
-
-	return new EmbedBuilder()
-		.setAuthor(
-			discordUser
-				? {
-						name: discordUser.displayName,
-						iconURL: discordUser.avatarURL() ?? undefined,
-					}
-				: null,
-		)
-		.setTitle(title)
-		.setURL(`https://anilist.co/user/${user.id}`)
-		.setDescription(description || null)
-		.setColor(color)
-		.setThumbnail(user.avatar.large)
-		.setFooter({ text: `📅 Joined ${createdDate.toDateString().slice(4)}` });
+	// return new EmbedBuilder()
+	// 	.setAuthor(
+	// 		discordUser
+	// 			? {
+	// 					name: discordUser.displayName,
+	// 					iconURL: discordUser.avatarURL() ?? undefined,
+	// 				}
+	// 			: null,
+	// 	)
+	// 	.setTitle(title)
+	// 	.setURL(`https://anilist.co/user/${user.id}`)
+	// 	.setDescription(description || null)
+	// 	.setColor(color)
+	// 	.setThumbnail(user.avatar.large)
+	// 	.setFooter({ text: `📅 Joined ${createdDate.toDateString().slice(4)}` });
 }
 
 export async function getAccessToken(code: string): Promise<string | undefined> {

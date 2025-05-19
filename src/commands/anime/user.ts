@@ -1,16 +1,24 @@
 import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import { getAniListAccessToken } from "@db/services";
-import { AutocompleteInteraction, ChatInputCommandInteraction } from "discord.js";
+import {
+	AutocompleteInteraction,
+	ButtonBuilder,
+	ChatInputCommandInteraction,
+	ComponentType,
+	MessageFlags,
+	SectionBuilder,
+} from "discord.js";
 import { AnimeUser } from "./anime.schema";
 import {
 	extractUserIdFromAccessToken,
 	getAnimeUser,
-	getAnimeUserEmbed,
+	getAnimeUserContainer,
 	getUserLastActivity,
 	searchUsers,
 } from "./anime.services";
 import connect from "./connect";
+import { executeFromComponent } from "./search";
 
 export async function autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
 	const query = interaction.options.getFocused();
@@ -63,7 +71,29 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 	}
 
 	const lastActivity = await getUserLastActivity(animeUser.id);
-	const embed = getAnimeUserEmbed(animeUser, lastActivity, discordUser);
+	const container = getAnimeUserContainer(animeUser, lastActivity, discordUser);
 
-	await interaction.reply({ embeds: [embed] });
+	const response = await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+	if (!lastActivity) {
+		return;
+	}
+
+	const collector = response.createMessageComponentCollector({
+		componentType: ComponentType.Button,
+		time: 300_000,
+	});
+
+	collector.on("collect", async componentInteraction => {
+		await executeFromComponent(componentInteraction, lastActivity.media.id);
+	});
+
+	collector.on("end", async () => {
+		container.components.forEach(component => {
+			if (!(component instanceof SectionBuilder)) return;
+			if (!(component.accessory instanceof ButtonBuilder)) return;
+			component.accessory.setDisabled(true);
+		});
+		await interaction.editReply({ components: [container] });
+	});
 }

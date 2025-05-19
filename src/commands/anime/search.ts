@@ -1,5 +1,12 @@
 import ExtendedClient from "@common/ExtendedClient";
-import { errorEmbed, errorMessage, simpleEmbed, truncateString } from "@common/reply-utils";
+import {
+	errorContainer,
+	errorContainerMessage,
+	errorEmbed,
+	errorMessage,
+	simpleEmbed,
+	truncateString,
+} from "@common/reply-utils";
 import { getAniListAccessToken } from "@db/services";
 import {
 	ActionRowBuilder,
@@ -81,6 +88,29 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
 	const listEntry = aniListUserId ? await getListEntry(aniListUserId, anime.id) : undefined;
 
+	await handleInteraction(interaction, anime, listEntry);
+}
+
+export async function executeFromComponent(componentInteraction: MessageComponentInteraction, animeId: number) {
+	const accessToken = await getAniListAccessToken(componentInteraction.user.id);
+	const anime = await getAnime(animeId, undefined, accessToken);
+
+	if (!anime) {
+		// This should never happen
+		await componentInteraction.reply(errorContainerMessage("Anime not found"));
+		return;
+	}
+	const aniListUserId = accessToken ? extractUserIdFromAccessToken(accessToken) : undefined;
+	const listEntry = aniListUserId ? await getListEntry(aniListUserId, anime.id) : undefined;
+	await handleInteraction(componentInteraction, anime, listEntry, true);
+}
+
+async function handleInteraction(
+	interaction: ChatInputCommandInteraction | MessageComponentInteraction,
+	anime: Anime,
+	listEntry?: MediaListEntry,
+	ephemeral = false,
+) {
 	const container = getAnimeContainer(anime, listEntry);
 
 	const listButton = new ButtonBuilder()
@@ -118,7 +148,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 
 	const response = await interaction.reply({
 		components: [container],
-		flags: MessageFlags.IsComponentsV2,
+		flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
 	});
 
 	const componentInteractionCollector = response.createMessageComponentCollector({
