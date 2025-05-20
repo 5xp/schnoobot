@@ -1,19 +1,23 @@
 import ExtendedClient, { applicationEmojis } from "@common/ExtendedClient";
-import { errorMessage, truncateString } from "@common/reply-utils";
+import { errorContainerMessage, errorMessage, truncateString } from "@common/reply-utils";
 import {
 	ActionRowBuilder,
 	AutocompleteInteraction,
-	BaseMessageOptions,
 	bold,
 	ButtonBuilder,
 	ButtonStyle,
 	ChannelType,
 	ChatInputCommandInteraction,
+	ContainerBuilder,
 	hideLinkEmbed,
 	hyperlink,
-	inlineCode,
 	Interaction,
+	MediaGalleryBuilder,
+	MediaGalleryItemBuilder,
 	MessageComponentInteraction,
+	MessageFlags,
+	SeparatorSpacingSize,
+	TextDisplayBuilder,
 	time,
 } from "discord.js";
 import fuzzysort from "fuzzysort";
@@ -44,6 +48,8 @@ const rerollKeepThreadButton = new ButtonBuilder()
 
 const catalogCache = new NodeCache({ stdTTL: 60 * 60, checkperiod: 60 });
 const threadCache = new NodeCache({ stdTTL: 10 * 60, checkperiod: 30 });
+
+const IDLE_TIMEOUT = 180_000;
 
 export async function autocomplete(interaction: AutocompleteInteraction, client: ExtendedClient): Promise<void> {
 	const focusedOption = interaction.options.getFocused(true);
@@ -193,11 +199,15 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 	}
 
 	await interaction.deferReply();
-	const response = await interaction.editReply(runResult.messageOptions);
+	const response = await interaction.editReply({
+		components: [runResult.container],
+		flags: MessageFlags.IsComponentsV2,
+	});
 	const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
-	const componentCollector = response.createMessageComponentCollector({ filter, idle: 180_000 });
+	const componentCollector = response.createMessageComponentCollector({ filter, idle: IDLE_TIMEOUT });
 
 	let lastThreadNo = runResult.selectedPost.threadNo;
+	let getDisabledContainer = runResult.getDisabledContainer;
 
 	componentCollector.on("collect", async i => {
 		numRerolls++;
@@ -218,7 +228,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 				"message" in error &&
 				typeof error.message === "string"
 			) {
-				await i.update(errorMessage(error.message)).catch(() => null);
+				await i.update(errorContainerMessage(error.message)).catch(() => null);
 			}
 		});
 
@@ -227,16 +237,24 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 		}
 
 		lastThreadNo = nextRunResult.selectedPost.threadNo;
+		getDisabledContainer = nextRunResult.getDisabledContainer;
 
-		await i.update(nextRunResult.messageOptions).catch(() => null);
+		await i
+			.update({
+				components: [nextRunResult.container],
+				flags: MessageFlags.IsComponentsV2,
+			})
+			.catch(() => null);
 	});
 
 	componentCollector.on("end", async () => {
-		await interaction.editReply({ components: [] }).catch(() => null);
+		await interaction
+			.editReply({ components: [getDisabledContainer()], flags: MessageFlags.IsComponentsV2 })
+			.catch(() => null);
 	});
 
 	componentCollector.on("ignore", async i => {
-		await i.reply(errorMessage("Only the user who initiated the command can reroll."));
+		await i.reply(errorContainerMessage("Only the user who initiated the command can reroll."));
 	});
 }
 
@@ -259,7 +277,8 @@ type RunOptions = {
 
 type RunResult = {
 	selectedPost: SelectedPost;
-	messageOptions: BaseMessageOptions;
+	container: ContainerBuilder;
+	getDisabledContainer: () => ContainerBuilder;
 };
 
 async function run(options: RunOptions): Promise<RunResult> {
@@ -299,7 +318,7 @@ async function run(options: RunOptions): Promise<RunResult> {
 		seenPostsCount[post.no] = (seenPostsCount[post.no] || 0) + 1;
 	}
 
-	const content = createPostContent(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
+	const container = createPostContainer(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
 	const actionRow = new ActionRowBuilder<ButtonBuilder>();
 
@@ -311,12 +330,19 @@ async function run(options: RunOptions): Promise<RunResult> {
 		actionRow.addComponents(rerollKeepThreadButton);
 	}
 
+	container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+	container.addActionRowComponents(actionRow);
+
+	const getDisabledContainer = () => {
+		rerollKeepBoardButton.setDisabled(true);
+		rerollKeepThreadButton.setDisabled(true);
+		return container;
+	};
+
 	return {
 		selectedPost: { board, threadNo: thread.no, postNo: post?.no },
-		messageOptions: {
-			content,
-			...(actionRow.components.length > 0 ? { components: [actionRow] } : {}),
-		},
+		container,
+		getDisabledContainer,
 	};
 }
 
@@ -461,7 +487,7 @@ function selectPost(posts: ThreadPost[], seenPosts: Record<number, number>): Thr
 	return posts[posts.length - 1];
 }
 
-function createPostContent(
+function createPostContainer(
 	post: ThreadPost | undefined,
 	board: string,
 	thread: CatalogThread,
@@ -469,9 +495,10 @@ function createPostContent(
 	replyCount: number,
 	imageCount: number,
 	videoCount: number,
-) {
-	let content = "",
-		description = "";
+): ContainerBuilder {
+	const container = new ContainerBuilder();
+
+	let description = "";
 
 	let heading = `${applicationEmojis.get("4chan")} /${board}/`;
 
@@ -480,7 +507,7 @@ function createPostContent(
 	}
 
 	if (thread.sub) {
-		heading += ` • ${bold(fixHTML(removeHTML(thread.sub)))}`;
+		heading += ` • ${bold(fixHTML(removeHTML(thread.sub))).replaceAll(/https?:\/\//g, "")}`;
 	}
 
 	if (post) {
@@ -491,9 +518,9 @@ function createPostContent(
 		description = bold("No posts matching the criteria were found.");
 	}
 
-	if (post?.filename) {
-		heading += ` ${hyperlink(inlineCode("📂File"), `https://i.4cdn.org/${board}/${post.tim}${post.ext}`)}`;
-	}
+	heading = `### ${heading}`;
+
+	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
 
 	if (post?.com) {
 		description = fixHTML(removeHTML(post.com));
@@ -506,7 +533,7 @@ function createPostContent(
 		description = `> ${description}`;
 	}
 
-	const footer = `-# Reroll #${numRerolls} • 💬${replyCount}🖼️${imageCount}🎞️${videoCount}`;
+	const footer = `-# Reroll #${numRerolls} • 💬 **${replyCount}** 🖼️ **${imageCount}** 🎞️ **${videoCount}**`;
 
 	const totalLength = heading.length + description.length + footer.length;
 
@@ -514,15 +541,22 @@ function createPostContent(
 		description = truncateString(description, 2000 - (heading.length + footer.length) - 3);
 	}
 
-	content = heading;
-
 	if (description) {
-		content += `\n${description}`;
+		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(description));
 	}
 
-	content += `\n${footer}`;
+	if (post?.filename) {
+		container.addMediaGalleryComponents(
+			new MediaGalleryBuilder().addItems(
+				new MediaGalleryItemBuilder().setURL(`https://i.4cdn.org/${board}/${post?.tim}${post?.ext}`),
+			),
+		);
+	}
 
-	return content;
+	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
+
+	return container;
 }
 
 function inNsfwChannel(interaction: Interaction): boolean {
