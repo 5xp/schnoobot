@@ -6,11 +6,11 @@ import {
 	InteractionContextType,
 	UserContextMenuCommandInteraction,
 } from "discord.js";
-import { run } from "./avatar";
+import { run } from "./profile";
 
 export default {
 	data: new ContextMenuCommandBuilder()
-		.setName("View user's avatar")
+		.setName("View user's profile appearance")
 		.setType(ApplicationCommandType.User)
 		.setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
 		.setContexts([
