@@ -207,7 +207,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 	const componentCollector = response.createMessageComponentCollector({ filter, idle: IDLE_TIMEOUT });
 
 	let lastThreadNo = runResult.selectedPost.threadNo;
-	let getDisabledContainer = runResult.getDisabledContainer;
+	let lastContainer = runResult.container;
 
 	componentCollector.on("collect", async i => {
 		numRerolls++;
@@ -237,7 +237,7 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 		}
 
 		lastThreadNo = nextRunResult.selectedPost.threadNo;
-		getDisabledContainer = nextRunResult.getDisabledContainer;
+		lastContainer = nextRunResult.container;
 
 		await i
 			.update({
@@ -248,8 +248,9 @@ export default async function execute(interaction: ChatInputCommandInteraction, 
 	});
 
 	componentCollector.on("end", async () => {
+		lastContainer = lastContainer.spliceComponents(-2, 2);
 		await interaction
-			.editReply({ components: [getDisabledContainer()], flags: MessageFlags.IsComponentsV2 })
+			.editReply({ components: [lastContainer], flags: MessageFlags.IsComponentsV2 })
 			.catch(() => null);
 	});
 
@@ -278,7 +279,6 @@ type RunOptions = {
 type RunResult = {
 	selectedPost: SelectedPost;
 	container: ContainerBuilder;
-	getDisabledContainer: () => ContainerBuilder;
 };
 
 async function run(options: RunOptions): Promise<RunResult> {
@@ -318,7 +318,9 @@ async function run(options: RunOptions): Promise<RunResult> {
 		seenPostsCount[post.no] = (seenPostsCount[post.no] || 0) + 1;
 	}
 
-	const container = createPostContainer(post, board, thread, numRerolls, replyCount, imageCount, videoCount);
+	const replies = posts.filter(p => p.com && fixHTML(removeHTML(p.com)).includes(`>>${post.no}`)).map(p => p.no);
+
+	const container = createPostContainer(post, replies, board, thread, numRerolls, replyCount, imageCount, videoCount);
 
 	const actionRow = new ActionRowBuilder<ButtonBuilder>();
 
@@ -333,16 +335,9 @@ async function run(options: RunOptions): Promise<RunResult> {
 	container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
 	container.addActionRowComponents(actionRow);
 
-	const getDisabledContainer = () => {
-		rerollKeepBoardButton.setDisabled(true);
-		rerollKeepThreadButton.setDisabled(true);
-		return container;
-	};
-
 	return {
 		selectedPost: { board, threadNo: thread.no, postNo: post?.no },
 		container,
-		getDisabledContainer,
 	};
 }
 
@@ -489,6 +484,7 @@ function selectPost(posts: ThreadPost[], seenPosts: Record<number, number>): Thr
 
 function createPostContainer(
 	post: ThreadPost | undefined,
+	replies: number[],
 	board: string,
 	thread: CatalogThread,
 	numRerolls: number,
@@ -500,6 +496,7 @@ function createPostContainer(
 
 	let description = "";
 
+	let totalTextLength = 0;
 	let heading = `${applicationEmojis.get("4chan")} /${board}/`;
 
 	if (!thread.sub && thread.com) {
@@ -507,49 +504,79 @@ function createPostContainer(
 	}
 
 	if (thread.sub) {
-		heading += ` • ${bold(fixHTML(removeHTML(thread.sub))).replaceAll(/https?:\/\//g, "")}`;
+		heading += ` • ${bold(fixHTML(removeHTML(thread.sub)))}`;
 	}
 
-	if (post) {
-		heading = hyperlink(heading, `<https://boards.4chan.org/${board}/thread/${thread.no}#p${post.no}>`);
-		heading += ` ${time(post.time, "R")}`;
-	} else {
+	if (!post) {
 		heading = hyperlink(heading, `<https://boards.4chan.org/${board}/thread/${thread.no}>`);
 		description = bold("No posts matching the criteria were found.");
 	}
 
 	heading = `### ${heading}`;
 
+	totalTextLength += heading.length;
 	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
+
+	if (post) {
+		let headingSubtext: string = hyperlink(
+			`**No. ${post.no}**`,
+			`<https://boards.4chan.org/${board}/thread/${thread.no}#p${post.no}>`,
+		);
+		if (post.name !== "Anonymous") {
+			headingSubtext = `${bold(post.name)} ${headingSubtext}`;
+		}
+		headingSubtext += " " + time(post.time, "R");
+
+		if (replies.length > 0) {
+			headingSubtext += " ";
+			headingSubtext += replies
+				.map(reply =>
+					hyperlink(`**>>${reply}**`, `<https://boards.4chan.org/${board}/thread/${thread.no}#p${reply}>`),
+				)
+				.join(" ");
+		}
+
+		headingSubtext = `-# ${headingSubtext}`;
+
+		totalTextLength += headingSubtext.length;
+
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headingSubtext));
+	}
 
 	if (post?.com) {
 		description = fixHTML(removeHTML(post.com));
 		description = description
 			.replace(/https?:\/\/[^\s]+/g, hideLinkEmbed)
-			.replace(/>>>\/(\w+)\/(\d+)/g, `[>>>/$1/$2](<https://boards.4chan.org/$1/thread/$2#p$2>)`)
-			.replace(/>>(\d+)/g, `[>>$1](<https://boards.4chan.org/${board}/thread/${thread.no}#p$1>)`)
+			.replace(/>>>\/(\w+)\/(\d+)/g, `[**>>>/$1/$2**](<https://boards.4chan.org/$1/thread/$2#p$2>)`)
+			.replace(/>>(\d+)/g, `[**>>$1**](<https://boards.4chan.org/${board}/thread/${thread.no}#p$1>)`)
+			.replace(`>>${thread.no}`, `>>${thread.no} (OP)`)
 			.replace(/\n/g, "\n> ");
 
 		description = `> ${description}`;
 	}
 
-	const footer = `-# Reroll #${numRerolls} • 💬 **${replyCount}** 🖼️ **${imageCount}** 🎞️ **${videoCount}**`;
+	const footer = `-# Reroll #${numRerolls} • **💬 ${replyCount} 🖼️ ${imageCount} 🎞️ ${videoCount}**`;
 
-	const totalLength = heading.length + description.length + footer.length;
+	totalTextLength += footer.length;
 
-	if (totalLength > 2000) {
-		description = truncateString(description, 2000 - (heading.length + footer.length) - 3);
+	if (totalTextLength + description.length > 4000) {
+		description = truncateString(description, 4000 - totalTextLength - 1);
+	}
+
+	if (description || post?.filename) {
+		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
 	}
 
 	if (description) {
-		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
 		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(description));
 	}
 
 	if (post?.filename) {
 		container.addMediaGalleryComponents(
 			new MediaGalleryBuilder().addItems(
-				new MediaGalleryItemBuilder().setURL(`https://i.4cdn.org/${board}/${post?.tim}${post?.ext}`),
+				new MediaGalleryItemBuilder()
+					.setURL(`https://i.4cdn.org/${board}/${post?.tim}${post?.ext}`)
+					.setSpoiler(post?.spoiler === 1),
 			),
 		);
 	}
@@ -593,7 +620,10 @@ async function fetchThread(board: string, thread: number): Promise<ThreadPost[]>
 }
 
 function removeHTML(text: string): string {
-	return text.replace(/<\s*br.*?>/g, "\n").replace(/<(.*?)>/g, "");
+	return text
+		.replace(/<\s*s\s*>([\s\S]*?)<\s*\/\s*s\s*>/g, "||$1||")
+		.replace(/<\s*br.*?>/g, "\n")
+		.replace(/<(.*?)>/g, "");
 }
 
 function fixHTML(text: string): string {

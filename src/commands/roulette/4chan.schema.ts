@@ -28,10 +28,12 @@ export const threadSchema = z.object({
 		z.object({
 			no: z.number(),
 			sub: z.string().optional(),
+			name: z.string(),
 			com: z.string().optional(),
 			tim: z.number().optional(),
 			filename: z.string().optional(),
 			time: z.number(),
+			spoiler: z.number().optional(),
 			ext: z.string().optional(),
 		}),
 	),
