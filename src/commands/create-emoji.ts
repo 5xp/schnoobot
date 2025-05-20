@@ -1,14 +1,17 @@
-import { errorMessage } from "@common/reply-utils";
+import { errorContainerMessage } from "@common/reply-utils";
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
 	ButtonStyle,
 	ChatInputCommandInteraction,
-	Colors,
-	EmbedBuilder,
+	ContainerBuilder,
+	InteractionContextType,
 	MessageComponentInteraction,
+	MessageFlags,
 	PermissionFlagsBits,
+	SeparatorSpacingSize,
 	SlashCommandBuilder,
+	TextDisplayBuilder,
 	inlineCode,
 } from "discord.js";
 import { z } from "zod";
@@ -52,16 +55,16 @@ export default {
 				),
 		)
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions)
-		.setDMPermission(false),
+		.setContexts(InteractionContextType.Guild),
 	async execute(interaction: ChatInputCommandInteraction): Promise<void> {
 		if (!interaction.inCachedGuild()) {
-			await interaction.reply(errorMessage("This command can only be used in a server."));
+			await interaction.reply(errorContainerMessage("This command can only be used in a server."));
 			return;
 		}
 
 		if (!interaction.appPermissions?.has(PermissionFlagsBits.ManageGuildExpressions)) {
 			await interaction.reply(
-				errorMessage(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`),
+				errorContainerMessage(`I don't have ${inlineCode("Manage Emojis and Stickers")} permissions!`),
 			);
 			return;
 		}
@@ -69,7 +72,7 @@ export default {
 		const name = interaction.options.getString("name", true);
 
 		if (name.includes(" ")) {
-			await interaction.reply(errorMessage("The name of the emoji cannot contain spaces."));
+			await interaction.reply(errorContainerMessage("The name of the emoji cannot contain spaces."));
 			return;
 		}
 
@@ -82,7 +85,7 @@ export default {
 				const attachment = interaction.options.getAttachment("image", true);
 
 				if (!allowedExtensions.some(extension => attachment.name.endsWith(extension))) {
-					await interaction.reply(errorMessage("The attachment must be an image."));
+					await interaction.reply(errorContainerMessage("The attachment must be an image."));
 					return;
 				}
 
@@ -106,7 +109,7 @@ export default {
 				const errorString = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
 
 				interaction.editReply(
-					errorMessage(`There was an error trying to create the emoji: ${inlineCode(errorString)}`),
+					errorContainerMessage(`There was an error trying to create the emoji: ${inlineCode(errorString)}`),
 				);
 			});
 
@@ -114,13 +117,7 @@ export default {
 			return;
 		}
 
-		const extension = emoji.animated ? "gif" : "webp";
-
-		const embed = new EmbedBuilder()
-			.setTitle("Created a new emoji")
-			.setImage(emoji.imageURL({ size: 4096, extension }))
-			.setFooter({ text: name })
-			.setColor(Colors.Blurple);
+		const container = new ContainerBuilder();
 
 		const deleteButton = new ButtonBuilder()
 			.setCustomId("delete")
@@ -128,7 +125,16 @@ export default {
 			.setStyle(ButtonStyle.Secondary);
 		const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(deleteButton);
 
-		const response = await interaction.editReply({ embeds: [embed], components: [actionRow] });
+		// TODO: Regression in components v2: animated webp is not supported.
+		// When this regression is fixed, update this to use thumbnail component.
+		container.addTextDisplayComponents(
+			new TextDisplayBuilder().setContent(`Created a new emoji`),
+			new TextDisplayBuilder().setContent(`# ${emoji}`),
+		);
+		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
+		container.addActionRowComponents(actionRow);
+
+		const response = await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
 		const filter = (i: MessageComponentInteraction) => i.user.id === interaction.user.id;
 		const componentInteraction = await response.awaitMessageComponent({ filter, time: 60_000 }).catch(() => null);
 
@@ -145,7 +151,7 @@ export default {
 			const errorString = errorResult.success ? errorResult.data.rawError.message : "Unknown error";
 
 			interaction.followUp(
-				errorMessage(`There was an error trying to delete the emoji: ${inlineCode(errorString)}`),
+				errorContainerMessage(`There was an error trying to delete the emoji: ${inlineCode(errorString)}`),
 			);
 		});
 
