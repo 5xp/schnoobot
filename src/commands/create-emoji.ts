@@ -9,14 +9,16 @@ import {
 	MessageComponentInteraction,
 	MessageFlags,
 	PermissionFlagsBits,
+	SectionBuilder,
 	SeparatorSpacingSize,
 	SlashCommandBuilder,
 	TextDisplayBuilder,
+	ThumbnailBuilder,
 	inlineCode,
 } from "discord.js";
 import { z } from "zod";
 
-const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"];
 
 export default {
 	data: new SlashCommandBuilder()
@@ -113,7 +115,7 @@ export default {
 				);
 			});
 
-		if (!emoji) {
+		if (!emoji || !emoji.name) {
 			return;
 		}
 
@@ -125,12 +127,20 @@ export default {
 			.setStyle(ButtonStyle.Secondary);
 		const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(deleteButton);
 
-		// TODO: Regression in components v2: animated webp is not supported.
-		// When this regression is fixed, update this to use thumbnail component.
-		container.addTextDisplayComponents(
-			new TextDisplayBuilder().setContent(`Created a new emoji`),
-			new TextDisplayBuilder().setContent(`# ${emoji}`),
-		);
+		const section = new SectionBuilder()
+			.addTextDisplayComponents(
+				new TextDisplayBuilder().setContent(`Created a new emoji`),
+				new TextDisplayBuilder().setContent(`## ${emoji.name}`),
+			)
+			.setThumbnailAccessory(
+				new ThumbnailBuilder({
+					media: {
+						url: emoji.imageURL({ size: 4096 }) + `&animated=true`,
+					},
+				}),
+			);
+
+		container.addSectionComponents(section);
 		container.addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small));
 		container.addActionRowComponents(actionRow);
 
