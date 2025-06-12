@@ -55,6 +55,20 @@ export default {
 								.setRequired(false),
 						),
 				),
+		)
+		.addSubcommandGroup(subcommandGroup =>
+			subcommandGroup
+				.setName("cookies")
+				.setDescription("Manage the cookies file")
+				.addSubcommand(subcommand => subcommand.setName("get").setDescription("Get the cookies file"))
+				.addSubcommand(subcommand =>
+					subcommand
+						.setName("upload")
+						.setDescription("Upload a new cookies file")
+						.addAttachmentOption(option =>
+							option.setName("file").setDescription("The cookies file to upload"),
+						),
+				),
 		),
 	async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
 		if (!isDev(client.application, interaction.user.id)) {
