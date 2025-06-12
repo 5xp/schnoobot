@@ -1,4 +1,3 @@
-import ExtendedClient from "@common/ExtendedClient";
 import { errorMessage } from "@common/reply-utils";
 import {
 	ActionRowBuilder,
@@ -20,7 +19,7 @@ import {
 import { ENV } from "env";
 import { readFile, unlink } from "fs/promises";
 import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
-import { getContainer, getMessage } from "./site-embeds";
+import { getContainer } from "./site-embeds";
 
 export const urlRegex =
 	/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -41,7 +40,7 @@ export default {
 			InteractionContextType.BotDM,
 			InteractionContextType.PrivateChannel,
 		]),
-	async execute(interaction: ChatInputCommandInteraction, client: ExtendedClient) {
+	async execute(interaction: ChatInputCommandInteraction) {
 		const url = interaction.options.getString("url", true);
 		const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;
 
@@ -78,6 +77,8 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 		writeInfoJson: true,
 		noCleanInfoJson: true,
 		paths: "./temp",
+		userAgent:
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15",
 		output: `${interaction.id}.%(ext)s`,
 	} as Flags;
 
