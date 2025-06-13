@@ -59,7 +59,7 @@ export default {
 		const url = interaction.options.getString("url", true);
 		const ephemeral = interaction.options.getBoolean("ephemeral", false) ?? false;
 		const spoiler = interaction.options.getBoolean("spoiler", false) ?? false;
-		const reencode = interaction.options.getBoolean("reencode", false) ?? false;
+		const reencode = interaction.options.getBoolean("reencode", false) ?? true;
 
 		if (!url.match(urlRegex)) {
 			interaction.reply(errorMessage("Invalid URL."));
