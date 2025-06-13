@@ -17,9 +17,11 @@ import {
 	hyperlink,
 } from "discord.js";
 import { ENV } from "env";
-import { readFile, unlink } from "fs/promises";
+import { readFile, rename, unlink } from "fs/promises";
 import { getContainer } from "./site-embeds";
 import { execa } from "execa";
+import { ffmpegPath, ffprobePath } from "ffmpeg-ffprobe-static";
+import path from "path";
 
 export type Payload = Record<string, any>;
 
@@ -36,6 +38,11 @@ export default {
 		.addBooleanOption(option =>
 			option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
 		)
+		.addBooleanOption(option =>
+			option
+				.setName("reencode")
+				.setDescription("Automatically reencode video to be compatible with discord. Defaults to true"),
+		)
 		.setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
 		.setContexts([
 			InteractionContextType.Guild,
@@ -44,14 +51,15 @@ export default {
 		]),
 	async execute(interaction: ChatInputCommandInteraction) {
 		const url = interaction.options.getString("url", true);
-		const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;
+		const ephemeral = interaction.options.getBoolean("ephemeral", false) ?? false;
+		const reencode = interaction.options.getBoolean("reencode", false) ?? false;
 
 		if (!url.match(urlRegex)) {
 			interaction.reply(errorMessage("Invalid URL."));
 			return;
 		}
 
-		run({ interaction, url, ephemeral });
+		run({ interaction, url, ephemeral, reencode });
 	},
 };
 
@@ -62,9 +70,16 @@ type RunOptions = {
 	url: string;
 	ephemeral: boolean;
 	jsonOnly?: boolean;
+	reencode?: boolean;
 };
 
-export async function run({ interaction, url, ephemeral, jsonOnly = false }: RunOptions): Promise<void> {
+export async function run({
+	interaction,
+	url,
+	ephemeral,
+	jsonOnly = false,
+	reencode = true,
+}: RunOptions): Promise<void> {
 	if (!interaction.deferred && !interaction.replied) {
 		await interaction.deferReply({ ephemeral: ephemeral || interaction.isContextMenuCommand() });
 	}
@@ -88,6 +103,18 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 	} catch (error) {
 		errorReply(interaction, error, url, ephemeral, true);
 		return;
+	}
+
+	// We might have a video that needs to be reencoded
+	if (reencode) {
+		const videoCodec = await getVideoCodec(payload.filename);
+		if (videoCodec && videoCodec !== "h264") {
+			await reencodeVideo({
+				input: payload.filename,
+			});
+			const { dir, name } = path.parse(payload.filename);
+			payload.filename = path.join(dir, `${name}.mp4`);
+		}
 	}
 
 	try {
@@ -128,6 +155,86 @@ function ytArgs(interactionId: string, uploadLimit: number, jsonOnly: boolean): 
 	}
 
 	return base;
+}
+
+async function getVideoCodec(inputFile: string): Promise<string | null> {
+	if (!ffprobePath) {
+		throw new Error("ffprobe path not found");
+	}
+
+	try {
+		const { stdout } = await execa(ffprobePath, [
+			"-v",
+			"quiet",
+			"-print_format",
+			"json",
+			"-show_streams",
+			"-select_streams",
+			"v",
+			inputFile,
+		]);
+
+		const info = JSON.parse(stdout);
+		if (info.streams && Array.isArray(info.streams) && info.streams.length > 0 && info.streams[0].codec_name) {
+			return info.streams[0].codec_name;
+		} else {
+			return null;
+		}
+	} catch (err) {
+		console.error("ffprobe failed:", err);
+		throw err;
+	}
+}
+
+type ReencodeOptions = {
+	input: string;
+	preset?: string;
+	crf?: number;
+	audioBitrate?: string;
+	overwrite?: boolean;
+};
+
+async function reencodeVideo(options: ReencodeOptions) {
+	if (!ffmpegPath) {
+		throw new Error("ffmpeg path not found");
+	}
+	const { input, preset = "medium", crf = 23, audioBitrate = "128k", overwrite = true } = options;
+
+	const { dir, name } = path.parse(input);
+	const temp = path.join(dir, `${name}.tmp.mp4`);
+	const output = path.join(dir, `${name}.mp4`);
+
+	const args: string[] = [];
+
+	if (overwrite) {
+		args.push("-y");
+	}
+
+	args.push(
+		"-i",
+		input,
+		"-c:v",
+		"libx264",
+		"-preset",
+		preset,
+		"-crf",
+		crf.toString(),
+		"-c:a",
+		"aac",
+		"-b:a",
+		audioBitrate,
+		temp,
+	);
+
+	try {
+		await execa(ffmpegPath, args, { timeout: 0 });
+		await unlink(input);
+		await rename(temp, output);
+	} catch (error) {
+		console.error(error);
+		unlink(temp).catch(() => null);
+		throw error;
+	}
 }
 
 function getUploadLimit(guild: Guild | null): number {
