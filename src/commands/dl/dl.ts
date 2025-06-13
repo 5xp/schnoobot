@@ -36,7 +36,13 @@ export default {
 			option.setName("url").setDescription("The URL of the media to download").setRequired(true),
 		)
 		.addBooleanOption(option =>
-			option.setName("ephemeral").setDescription("Whether the response should be ephemeral").setRequired(false),
+			option
+				.setName("ephemeral")
+				.setDescription("Enables ephemeral responses. Defaults to false")
+				.setRequired(false),
+		)
+		.addBooleanOption(option =>
+			option.setName("spoiler").setDescription("Sends the response as a spoiler. Defaults to false"),
 		)
 		.addBooleanOption(option =>
 			option
@@ -52,6 +58,7 @@ export default {
 	async execute(interaction: ChatInputCommandInteraction) {
 		const url = interaction.options.getString("url", true);
 		const ephemeral = interaction.options.getBoolean("ephemeral", false) ?? false;
+		const spoiler = interaction.options.getBoolean("spoiler", false) ?? false;
 		const reencode = interaction.options.getBoolean("reencode", false) ?? false;
 
 		if (!url.match(urlRegex)) {
@@ -59,7 +66,7 @@ export default {
 			return;
 		}
 
-		run({ interaction, url, ephemeral, reencode });
+		run({ interaction, url, ephemeral, spoiler, reencode });
 	},
 };
 
@@ -69,6 +76,7 @@ type RunOptions = {
 	interaction: ValidInteraction;
 	url: string;
 	ephemeral: boolean;
+	spoiler?: boolean;
 	jsonOnly?: boolean;
 	reencode?: boolean;
 };
@@ -77,6 +85,7 @@ export async function run({
 	interaction,
 	url,
 	ephemeral,
+	spoiler = false,
 	jsonOnly = false,
 	reencode = true,
 }: RunOptions): Promise<void> {
@@ -118,7 +127,7 @@ export async function run({
 	}
 
 	try {
-		await createReply(interaction, payload, ephemeral, jsonOnly);
+		await createReply(interaction, payload, ephemeral, spoiler, jsonOnly);
 	} catch (error) {
 		errorReply(interaction, error, url, ephemeral, false);
 	} finally {
@@ -281,6 +290,7 @@ async function createReply(
 	interaction: ValidInteraction,
 	payload: Payload,
 	ephemeral: boolean,
+	spoiler: boolean,
 	jsonOnly: boolean,
 ): Promise<void> {
 	let attachment: AttachmentBuilder | undefined;
@@ -302,7 +312,7 @@ async function createReply(
 	}
 
 	if (interaction.isContextMenuCommand() && !ephemeral) {
-		const container = getContainer({ jsonDump: payload, useEmoji: false }, attachment.name);
+		const container = getContainer({ jsonDump: payload, useEmoji: false }, attachment.name, spoiler);
 
 		await interaction.targetMessage.reply({
 			components: [container],
@@ -313,7 +323,7 @@ async function createReply(
 
 		interaction.deleteReply();
 	} else {
-		const container = getContainer({ jsonDump: payload, useEmoji: true }, attachment.name);
+		const container = getContainer({ jsonDump: payload, useEmoji: true }, attachment.name, spoiler);
 		await interaction.editReply({
 			components: [container],
 			files: [attachment],

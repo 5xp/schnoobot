@@ -1,5 +1,12 @@
 import { applicationEmojis } from "@common/ExtendedClient";
-import { ContainerBuilder, hideLinkEmbed, hyperlink, MediaGalleryBuilder, TextDisplayBuilder } from "discord.js";
+import {
+	ContainerBuilder,
+	hideLinkEmbed,
+	hyperlink,
+	MediaGalleryBuilder,
+	MediaGalleryItemBuilder,
+	TextDisplayBuilder,
+} from "discord.js";
 import { Payload } from "./dl";
 import numeral from "numeral";
 
@@ -8,7 +15,10 @@ interface MessageStrategy {
 }
 
 // We only don't use emoji when replying to a message because emojis only seem to work in webhooks
-type StrategyOptions = { jsonDump: Payload; useEmoji: boolean };
+type StrategyOptions = {
+	jsonDump: Payload;
+	useEmoji: boolean;
+};
 
 const messageStrategies: Record<string, MessageStrategy> = {
 	tiktok: (options: StrategyOptions) => {
@@ -108,22 +118,21 @@ export function getMessage(options: StrategyOptions): string {
 	return messageStrategy(options);
 }
 
-export function getContainer(options: StrategyOptions, filename: string): ContainerBuilder {
+export function getContainer(options: StrategyOptions, filename: string, spoiler: boolean): ContainerBuilder {
 	const container = new ContainerBuilder();
 
 	const message = getMessage(options).split("\n");
 
 	container.addTextDisplayComponents(new TextDisplayBuilder().setContent(message[0]));
 
-	const mediaComponent = new MediaGalleryBuilder({
-		items: [
-			{
-				media: {
-					url: `attachment://${filename}`,
-				},
+	const mediaComponent = new MediaGalleryBuilder().addItems(
+		new MediaGalleryItemBuilder({
+			spoiler,
+			media: {
+				url: `attachment://${filename}`,
 			},
-		],
-	});
+		}),
+	);
 
 	container.addMediaGalleryComponents(mediaComponent);
 
