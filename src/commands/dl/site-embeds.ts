@@ -1,16 +1,7 @@
 import { applicationEmojis } from "@common/ExtendedClient";
-import {
-	AttachmentBuilder,
-	ColorResolvable,
-	ContainerBuilder,
-	EmbedBuilder,
-	hideLinkEmbed,
-	hyperlink,
-	MediaGalleryBuilder,
-	TextDisplayBuilder,
-} from "discord.js";
+import { ContainerBuilder, hideLinkEmbed, hyperlink, MediaGalleryBuilder, TextDisplayBuilder } from "discord.js";
+import { Payload } from "./dl";
 import numeral from "numeral";
-import { Payload } from "youtube-dl-exec";
 
 interface MessageStrategy {
 	(options: StrategyOptions): string;
@@ -100,16 +91,6 @@ function format(input: any): string {
 	}
 
 	return numeral(input).format("0,0.0a");
-}
-
-function createEmbed(label: string, url: string, color: ColorResolvable | null, secondaryLabel: string): EmbedBuilder {
-	const embed = new EmbedBuilder().setDescription(hyperlink(label, url)).setColor(color);
-
-	if (secondaryLabel) {
-		embed.setFooter({ text: secondaryLabel });
-	}
-
-	return embed;
 }
 
 function createMessage(label: string, url: string, secondaryLabel: string): string {

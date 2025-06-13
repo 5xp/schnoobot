@@ -1,21 +1,15 @@
-import ExtendedClient from "@common/ExtendedClient";
-import { errorMessage, simpleEmbed } from "@common/reply-utils";
-import { ChatInputCommandInteraction } from "discord.js";
+import { errorMessage, simpleContainer } from "@common/reply-utils";
+import { ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import { execa } from "execa";
 
-export default async function execute(interaction: ChatInputCommandInteraction, client: ExtendedClient): Promise<void> {
+export default async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
 	await interaction.deferReply({ ephemeral: true });
+	const { stdout, stderr } = await execa`npm run fetch-yt-dlp`;
 
-	const { exec } = require("child_process");
+	if (stderr) {
+		await interaction.editReply(errorMessage(stderr));
+		return;
+	}
 
-	exec(
-		'npm run postinstall --prefix node_modules/youtube-dl-exec --YOUTUBE_DL_HOST="https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest"',
-		(error: any, stdout: any, stderr: any) => {
-			if (error) {
-				interaction.editReply(errorMessage("Failed to update youtube-dl"));
-				return;
-			}
-
-			interaction.editReply({ embeds: [simpleEmbed("Updated youtube-dl")] });
-		},
-	);
+	await interaction.editReply({ components: [simpleContainer(stdout)], flags: MessageFlags.IsComponentsV2 });
 }

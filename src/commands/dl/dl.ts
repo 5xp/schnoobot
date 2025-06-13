@@ -18,8 +18,10 @@ import {
 } from "discord.js";
 import { ENV } from "env";
 import { readFile, unlink } from "fs/promises";
-import youtubeDl, { Flags, Payload } from "youtube-dl-exec";
 import { getContainer } from "./site-embeds";
+import { execa } from "execa";
+
+export type Payload = Record<string, any>;
 
 export const urlRegex =
 	/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g;
@@ -69,31 +71,12 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 
 	const uploadLimit = getUploadLimit(interaction.guild);
 
-	const options: Flags = {
-		format: "(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/ba[ext=mp3]/b",
-		matchFilter: "!is_live & !was_live & !playlist_id",
-		formatSort: `vcodec:h264,filesize:${uploadLimit}M` as any, // the typings are wrong
-		maxFilesize: `${uploadLimit}M`,
-		writeInfoJson: true,
-		noCleanInfoJson: true,
-		paths: "./temp",
-		userAgent:
-			"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15",
-		output: `${interaction.id}.%(ext)s`,
-	} as Flags;
-
-	if (jsonOnly) {
-		options.skipDownload = true;
-	}
-
-	if (ENV.COOKIES_FILE_NAME) {
-		options.cookies = ENV.COOKIES_FILE_NAME;
-	}
+	const args = ytArgs(interaction.id, uploadLimit, jsonOnly);
 
 	let output: string, payload: Payload;
 
 	try {
-		output = await tryDownload(url, options);
+		output = await tryDownload(url, args);
 		const error = detectAbortion(output);
 		if (error) {
 			throw new Error(error);
@@ -101,7 +84,7 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 		const fileContents = await readFile(`./temp/${interaction.id}.info.json`, "utf-8").catch(() => {
 			throw new Error(error ?? "Unknown error occurred.");
 		});
-		payload = JSON.parse(fileContents) as Payload;
+		payload = JSON.parse(fileContents);
 	} catch (error) {
 		errorReply(interaction, error, url, ephemeral, true);
 		return;
@@ -112,10 +95,39 @@ export async function run({ interaction, url, ephemeral, jsonOnly = false }: Run
 	} catch (error) {
 		errorReply(interaction, error, url, ephemeral, false);
 	} finally {
-		const filename = (payload as any).filename; // the typings are wrong
+		const filename = payload.filename;
 		unlink(filename).catch(() => null);
 		unlink(`./temp/${interaction.id}.info.json`).catch(() => null);
 	}
+}
+
+function ytArgs(interactionId: string, uploadLimit: number, jsonOnly: boolean): string[] {
+	const base = [
+		"--format",
+		"(bv[ext=mp4]+ba[ext=m4a])/b[ext=mp4]/ba[ext=mp3]/b",
+		"--match-filter",
+		"!is_live & !was_live & !playlist_id",
+		"--format-sort",
+		`vcodec:h264,filesize:${uploadLimit}M`,
+		"--max-filesize",
+		`${uploadLimit}M`,
+		"--write-info-json",
+		"--no-clean-info-json",
+		"--paths",
+		"./temp",
+		"--output",
+		`${interactionId}.%(ext)s`,
+	];
+
+	if (jsonOnly) {
+		base.push("--skip-download");
+	}
+
+	if (ENV.COOKIES_FILE_NAME) {
+		base.push("--cookies", ENV.COOKIES_FILE_NAME);
+	}
+
+	return base;
 }
 
 function getUploadLimit(guild: Guild | null): number {
@@ -133,17 +145,10 @@ function getUploadLimit(guild: Guild | null): number {
 	}
 }
 
-async function tryDownload(url: string, options: Flags): Promise<string> {
-	try {
-		return (await youtubeDl.exec(url, options)).stdout;
-	} catch (error) {
-		const stderr = (error as { stderr?: string })?.stderr ?? "";
-		if (stderr) {
-			throw new Error(stderr);
-		}
-
-		throw error;
-	}
+async function tryDownload(url: string, args: string[]): Promise<string> {
+	const bin = "./bin/yt-dlp" + (process.platform === "win32" ? ".exe" : "");
+	const { stdout } = await execa(bin, [...args, url]);
+	return stdout;
 }
 
 function detectAbortion(stdout: string): string | undefined {
@@ -179,7 +184,7 @@ async function createReply(
 			name: "info.json",
 		});
 	} else {
-		const filename: string = (payload as any).filename; // the typings are wrong
+		const filename: string = payload.filename;
 		attachment = new AttachmentBuilder(filename, {
 			name: filename.split("/").pop(),
 		});

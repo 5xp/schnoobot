@@ -6,6 +6,7 @@
 		"prebuild": "rimraf dist",
 		"build": "tsc",
 		"dev": "ts-node --transpile-only -r tsconfig-paths/register src/bot.ts",
+		"fetch-yt-dlp": "ts-node ./src/fetch-yt-dlp.ts",
 		"start": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register .",
 		"deploy:guild": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js",
 		"deploy:global": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/deploy-commands.js --global",
@@ -20,6 +21,7 @@
 		"discord.js": "^14.19.3",
 		"dotenv": "^16.3.1",
 		"drizzle-orm": "^0.38.2",
+		"execa": "^9.6.0",
 		"fuzzysort": "^3.0.2",
 		"jsdom": "^23.2.0",
 		"jsonwebtoken": "^9.0.2",
@@ -27,7 +29,6 @@
 		"numeral": "^2.0.6",
 		"rimraf": "^6.0.1",
 		"turndown": "^7.1.2",
-		"youtube-dl-exec": "^3.0.6",
 		"zod": "^3.22.4"
 	},
 	"devDependencies": {
