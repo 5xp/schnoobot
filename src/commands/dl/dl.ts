@@ -6,8 +6,6 @@ import {
 	ButtonBuilder,
 	ButtonStyle,
 	ChatInputCommandInteraction,
-	Guild,
-	GuildPremiumTier,
 	InteractionContextType,
 	MessageContextMenuCommandInteraction,
 	MessageFlags,
@@ -93,7 +91,7 @@ export async function run({
 		await interaction.deferReply({ ephemeral: ephemeral || interaction.isContextMenuCommand() });
 	}
 
-	const uploadLimit = getUploadLimit(interaction.guild);
+	const uploadLimit = interaction.attachmentSizeLimit / 1e6;
 
 	const args = ytArgs(interaction.id, uploadLimit, jsonOnly);
 
@@ -243,21 +241,6 @@ async function reencodeVideo(options: ReencodeOptions) {
 		console.error(error);
 		unlink(temp).catch(() => null);
 		throw error;
-	}
-}
-
-function getUploadLimit(guild: Guild | null): number {
-	const premiumTier = guild?.premiumTier;
-
-	switch (premiumTier) {
-		case GuildPremiumTier.Tier2:
-			return 50;
-
-		case GuildPremiumTier.Tier3:
-			return 100;
-
-		default:
-			return 10;
 	}
 }
 
