@@ -18,7 +18,7 @@
 	"dependencies": {
 		"better-sqlite3": "^11.7.0",
 		"cross-env": "^7.0.3",
-		"discord.js": "^14.19.3",
+		"discord.js": "^14.20.0",
 		"dotenv": "^16.3.1",
 		"drizzle-orm": "^0.38.2",
 		"execa": "^9.6.0",
